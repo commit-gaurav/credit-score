@@ -1,7 +1,8 @@
 """AltScore AI — Streamlit Application Dashboard.
 
-Slice 3: Calculates and displays the four alternative financial features
-extracted from the selected persona's transaction history.
+Slice 4: Generates and displays a reproducible synthetic dataset for model
+training and fairness auditing, strictly separating demographic metadata
+and simulated target labels from model input features.
 """
 
 from typing import Any, Dict, List
@@ -10,6 +11,14 @@ import pandas as pd
 import streamlit as st
 
 from data.personas import get_personas
+from data.synthetic_data import (
+    DEFAULT_ROW_COUNT,
+    DEFAULT_SEED,
+    generate_synthetic_dataset,
+    get_demographic_columns,
+    get_feature_columns,
+    get_target_column,
+)
 from features.extraction import extract_features
 
 
@@ -179,6 +188,48 @@ def render_extracted_features(features: Dict[str, float]) -> None:
         )
 
 
+def render_synthetic_dataset_summary(df: pd.DataFrame) -> None:
+    """Display a summary and sample preview of the generated training dataset.
+
+    Args:
+        df: The generated synthetic DataFrame.
+    """
+    st.markdown("### 4. Synthetic Training & Evaluation Dataset")
+    st.write(
+        "A reproducible synthetic dataset generated in memory using a fixed random seed (42). "
+        "The simulated repayment target is generated via a multi-factor latent logistic model "
+        "with stochastic noise. Demographic columns are strictly separated for fairness audits."
+    )
+
+    # Dataset summary metrics
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric(label="Total Synthetic Records", value=f"{len(df):,}")
+    with col2:
+        repayment_rate = df[get_target_column()].mean()
+        st.metric(label="Simulated Repayment Rate", value=f"{repayment_rate:.1%}")
+    with col3:
+        st.metric(label="Model Feature Columns", value=f"{len(get_feature_columns())}")
+    with col4:
+        st.metric(label="Demographic Audit Columns", value=f"{len(get_demographic_columns())}")
+
+    # Preview first 5 rows
+    st.markdown("##### Dataset Sample Preview (First 5 Rows)")
+    st.dataframe(df.head(5), use_container_width=True, hide_index=True)
+
+    with st.expander("📊 Feature Distribution Statistics & Generation Methodology"):
+        st.markdown("**Descriptive Statistics for Model Features:**")
+        st.dataframe(df[get_feature_columns()].describe().round(3), use_container_width=True)
+        st.markdown(
+            """
+            **Target Generation & Governance Rules:**
+            - **Formula:** $\\text{logit} = -3.2 + 1.8 \\cdot \\text{income\\_stability} + 2.6 \\cdot \\text{bill\\_consistency} + 1.5 \\cdot \\text{payment\\_regularity} + 1.5 \\cdot (\\text{liquidity\\_buffer} / 6) + \\epsilon$, where $\\epsilon \\sim \\mathcal{N}(0, 0.6)$.
+            - **Non-trivial Target:** Unobserved stochastic noise ($\\epsilon$) captures unpredictable real-world life shocks (e.g. emergencies), preventing the target from being trivially separable by any single heuristic.
+            - **Zero Leakage:** Demographic attributes (`gender`, `geography`) and target labels (`repaid`) are isolated into explicit column lists and never passed into training feature matrices.
+            """
+        )
+
+
 def main() -> None:
     """Build the dashboard and render current slice components."""
     # st.set_page_config must be called as the first Streamlit command
@@ -217,10 +268,16 @@ def main() -> None:
     render_extracted_features(features)
 
     st.divider()
+
+    # Synthetic training data generation and summary
+    df_synthetic = generate_synthetic_dataset(seed=DEFAULT_SEED, row_count=DEFAULT_ROW_COUNT)
+    render_synthetic_dataset_summary(df_synthetic)
+
+    st.divider()
     st.info(
-        "**Slice 3 Active:** Four financial features extracted from transactions. "
-        "Synthetic training data generation (Slice 4) and baseline scoring model (Slice 5) "
-        "will be implemented in subsequent slices."
+        "**Slice 4 Active:** Reproducible synthetic dataset (1,000 rows, seed=42) generated. "
+        "Demographic audit attributes and target labels are strictly separated from feature inputs. "
+        "Baseline model training and held-out evaluation (Slice 5) will follow."
     )
 
 
