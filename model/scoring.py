@@ -1,7 +1,8 @@
 """Model training, scoring, and evaluation for AltScore AI.
 
 Implements baseline logistic regression training on synthetic alternative
-credit signals.
+credit signals, probability estimation, illustrative score mapping, and
+risk categorization.
 
 Rules enforced:
 - Strictly reproducible train/test split with fixed random seed.
@@ -9,6 +10,8 @@ Rules enforced:
 - Demographic attributes and target labels are never exposed to model inputs.
 - Evaluation metrics are explicitly computed on the held-out test split
   and labeled as synthetic evaluation results.
+- Score mapping follows the exact formula: 300 + 600 * probability.
+- All numbers are dynamically computed from data and model; no hardcoding.
 """
 
 from typing import Any, Dict, Tuple
@@ -28,6 +31,10 @@ from data.synthetic_data import get_feature_columns, get_target_column
 
 DEFAULT_MODEL_SEED: int = 42
 DEFAULT_TEST_SIZE: float = 0.25
+
+# Documented Risk Category Thresholds (Repayment Probability)
+LOW_RISK_THRESHOLD: float = 0.85    # Equivalent to illustrative score >= 810
+MEDIUM_RISK_THRESHOLD: float = 0.70  # Equivalent to illustrative score 720 - 809
 
 
 def train_model(
@@ -95,3 +102,68 @@ def train_model(
 
     return model, metrics
 
+
+def predict_repayment_probability(
+    model: LogisticRegression,
+    features: Dict[str, float],
+) -> float:
+    """Calculate the model's estimated probability for simulated loan repayment.
+
+    Uses the actual fitted logistic regression model. Features are ordered
+    strictly according to the feature column definitions.
+
+    Args:
+        model: Fitted LogisticRegression classifier.
+        features: Dictionary containing the four behavioral features.
+
+    Returns:
+        float: Estimated repayment probability bounded in [0.0, 1.0], rounded to 4 decimals.
+    """
+    feature_cols = get_feature_columns()
+    input_df = pd.DataFrame([[features[col] for col in feature_cols]], columns=feature_cols)
+    prob = float(model.predict_proba(input_df)[0, 1])
+    return round(float(prob), 4)
+
+
+def probability_to_score(probability: float) -> int:
+    """Map repayment probability to an illustrative 300-900 credit score.
+
+    Exact formula from PLAN.md:
+        illustrative_score = round(300 + 600 * probability)
+        Clamped to [300, 900].
+
+    Note:
+        This is an illustrative linear transformation of the model's estimated
+        probability, NOT an established credit bureau score (such as CIBIL or FICO).
+
+    Args:
+        probability: Repayment probability in [0.0, 1.0].
+
+    Returns:
+        int: Bounded illustrative score between 300 and 900.
+    """
+    raw_score = 300.0 + (600.0 * probability)
+    clamped_score = max(300, min(900, int(round(raw_score))))
+    return clamped_score
+
+
+def categorize_risk(probability: float) -> str:
+    """Map repayment probability to documented demo risk categories.
+
+    Thresholds:
+        - Low Risk: Probability >= 0.85 (Illustrative Score 810-900)
+        - Medium Risk: 0.70 <= Probability < 0.85 (Illustrative Score 720-809)
+        - High Risk: Probability < 0.70 (Illustrative Score 300-719)
+
+    Args:
+        probability: Repayment probability in [0.0, 1.0].
+
+    Returns:
+        str: Risk category label ('Low Risk', 'Medium Risk', or 'High Risk').
+    """
+    if probability >= LOW_RISK_THRESHOLD:
+        return "Low Risk"
+    elif probability >= MEDIUM_RISK_THRESHOLD:
+        return "Medium Risk"
+    else:
+        return "High Risk"

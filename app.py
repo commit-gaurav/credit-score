@@ -1,8 +1,8 @@
 """AltScore AI — Streamlit Application Dashboard.
 
-Slice 5: Trains a baseline logistic regression classifier on the four financial
-features and displays held-out evaluation metrics computed on synthetic test data.
-Demographic attributes are strictly excluded from training inputs.
+Slice 6: Computes and displays the selected persona's model-generated repayment
+probability, illustrative 300–900 credit score, and risk category using
+the trained baseline logistic regression model.
 """
 
 from typing import Any, Dict, List
@@ -20,7 +20,12 @@ from data.synthetic_data import (
     get_target_column,
 )
 from features.extraction import extract_features
-from model.scoring import train_model
+from model.scoring import (
+    categorize_risk,
+    predict_repayment_probability,
+    probability_to_score,
+    train_model,
+)
 
 
 def render_header() -> None:
@@ -295,6 +300,66 @@ def render_model_evaluation(metrics: Dict[str, Any]) -> None:
         )
 
 
+def render_persona_scoring(
+    persona_name: str,
+    probability: float,
+    score: int,
+    risk_category: str,
+) -> None:
+    """Display the persona's model prediction, illustrative score, and risk category.
+
+    Args:
+        persona_name: Name of the active persona.
+        probability: Model estimated repayment probability.
+        score: Bounded 300-900 illustrative score.
+        risk_category: Documented risk tier (Low, Medium, High).
+    """
+    st.markdown("### 6. Persona Prediction, Illustrative Score & Risk Category")
+    st.write(
+        f"Evaluating synthetic applicant **{persona_name}** by feeding their calculated "
+        "behavioral features directly into the trained logistic regression model:"
+    )
+
+    # Highlight the 3 core predictions in columns
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(
+            label="Repayment Probability",
+            value=f"{probability:.1%}",
+            help=f"Model-estimated probability of successful repayment: {probability:.4f}",
+        )
+    with col2:
+        st.metric(
+            label="Illustrative Score (300–900)",
+            value=str(score),
+            help="Linear transformation: 300 + 600 × Repayment Probability",
+        )
+    with col3:
+        st.metric(
+            label="Risk Classification",
+            value=risk_category,
+            help="Categorized based on documented probability thresholds.",
+        )
+
+    # Score definition and risk categories documentation expander
+    with st.expander("📖 Score Mapping & Risk Category Definitions"):
+        st.markdown(
+            """
+            **Illustrative Score Formula:**
+            $$\\text{Score} = 300 + 600 \\times P(\\text{repayment})$$
+            - **Range:** Strictly bounded between **300** and **900**.
+            - **Disclaimer:** This score is an illustrative mathematical scaling of model probability. It is **not** an established credit score (such as CIBIL, Experian, or FICO) and has no external regulatory standing.
+
+            **Documented Risk Categories:**
+            | Category | Repayment Probability | Illustrative Score Range | Interpretation |
+            | :--- | :--- | :--- | :--- |
+            | **Low Risk** | $\\ge 85.0\\%$ | **810 – 900** | High income stability, disciplined bill payment, and solid liquidity buffer. |
+            | **Medium Risk** | $70.0\\% - 84.9\\%$ | **720 – 809** | Moderate repayment probability; manageable buffer or occasional late payment. |
+            | **High Risk** | $< 70.0\\%$ | **300 – 719** | Multiple adverse signals, erratic cash inflows, or inadequate liquidity reserves. |
+            """
+        )
+
+
 def main() -> None:
     """Build the dashboard and render current slice components."""
     # st.set_page_config must be called as the first Streamlit command
@@ -341,14 +406,27 @@ def main() -> None:
     st.divider()
 
     # Baseline model training and held-out evaluation
-    _, eval_metrics = train_model(df_synthetic, seed=DEFAULT_SEED)
+    model, eval_metrics = train_model(df_synthetic, seed=DEFAULT_SEED)
     render_model_evaluation(eval_metrics)
 
     st.divider()
+
+    # Persona risk scoring and illustrative score
+    repayment_prob = predict_repayment_probability(model, features)
+    illustrative_score = probability_to_score(repayment_prob)
+    risk_category = categorize_risk(repayment_prob)
+    render_persona_scoring(
+        persona_name=selected_persona["name"],
+        probability=repayment_prob,
+        score=illustrative_score,
+        risk_category=risk_category,
+    )
+
+    st.divider()
     st.info(
-        "**Slice 5 Active:** Baseline logistic regression trained on 4 behavioral financial features. "
-        "Held-out evaluation metrics displayed (750 train / 250 test split). "
-        "Persona prediction, illustrative 300–900 score, and risk categories (Slice 6) will follow."
+        "**Slice 6 Active:** Persona repayment probability, illustrative 300–900 score, "
+        "and risk category dynamically generated from trained model. "
+        "Model-linked prediction explanations (Slice 7) will follow."
     )
 
 
