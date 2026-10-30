@@ -1,8 +1,8 @@
 """AltScore AI — Streamlit Application Dashboard.
 
-Slice 8: Adds interactive what-if controls for all four financial features
-and shows real-time recalculated model predictions, scores, risk categories,
-and linear explanations beside the active persona's baseline.
+Slice 9: Calculates and displays the synthetic fairness audit for Gender
+and Urban/Rural groups, computing approval rates, reference/comparison groups,
+and disparate impact ratios with explicit zero-rate handling.
 """
 
 from typing import Any, Dict, List
@@ -19,6 +19,10 @@ from data.synthetic_data import (
     get_demographic_columns,
     get_feature_columns,
     get_target_column,
+)
+from fairness.audit import (
+    DEFAULT_AUDIT_APPROVAL_THRESHOLD,
+    calculate_fairness_metrics,
 )
 from features.extraction import extract_features
 from model.scoring import (
@@ -109,7 +113,7 @@ def render_persona_profile(persona: Dict[str, Any]) -> None:
 
     st.caption(
         "Note: Demographic attributes (Gender, Geography) are tracked solely for "
-        "disparate impact audit analysis (Slice 9) and are **never** used as predictive model features."
+        "disparate impact audit analysis (Section 9) and are **never** used as predictive model features."
     )
 
 
@@ -501,7 +505,7 @@ def render_what_if_simulator(
     baseline_category = categorize_risk(baseline_prob)
     baseline_exp = explain_prediction(model, baseline_features)
 
-    # Recalculate outputs through the same model pipeline
+    # Recalculate outputs through the exact same model pipeline
     adjusted_prob = predict_repayment_probability(model, adjusted_features)
     adjusted_score = probability_to_score(adjusted_prob)
     adjusted_category = categorize_risk(adjusted_prob)
@@ -568,6 +572,92 @@ def render_what_if_simulator(
         "⚠️ **Simulation Notice:** Simulated score improvements illustrate the statistical "
         "sensitivity of the model. In real underwriting, improving synthetic indicators does not "
         "guarantee real loan approval or shield borrowers from unexpected external hardships."
+    )
+
+
+def render_fairness_audit(audit_results: Dict[str, Any]) -> None:
+    """Display the synthetic fairness audit across demographic dimensions.
+
+    Args:
+        audit_results: Fairness audit metrics dictionary from calculate_fairness_metrics.
+    """
+    st.markdown("### 9. Synthetic Fairness & Disparate Impact Audit")
+    st.write(
+        "Fairness audit evaluating model approval rates across **Gender** and **Urban/Rural Geography** "
+        f"on the synthetic evaluation records (N = {audit_results['total_records']:,}). "
+        f"Model predictions are generated strictly from financial features; demographic labels are used "
+        "solely after scoring to group outcomes."
+    )
+
+    threshold = audit_results["threshold"]
+    st.caption(
+        f"📋 **Documented Approval Rule:** Borrowers with estimated repayment probability "
+        f"**\\(P \\ge {threshold:.1%}\\)** (equivalent to Illustrative Score \\(\\ge 720\\)) are classified as approved."
+    )
+
+    # Display side-by-side metric cards for Gender and Geography
+    col_audit1, col_audit2 = st.columns(2)
+
+    with col_audit1:
+        st.markdown("#### Dimension 1: Gender Audit")
+        g_data = audit_results["dimensions"]["gender"]
+        st.write(
+            f"- **Reference Group (Higher Rate):** {g_data['reference_group']} "
+            f"({g_data['reference_rate']:.1%})  \n"
+            f"- **Comparison Group (Lower Rate):** {g_data['comparison_group']} "
+            f"({g_data['comparison_rate']:.1%})"
+        )
+        st.metric(
+            label="Disparate Impact Ratio (Comparison / Reference)",
+            value=g_data["ratio_display"],
+            help="Calculated as comparison approval rate divided by reference approval rate.",
+        )
+
+    with col_audit2:
+        st.markdown("#### Dimension 2: Geography Audit")
+        geo_data = audit_results["dimensions"]["geography"]
+        st.write(
+            f"- **Reference Group (Higher Rate):** {geo_data['reference_group']} "
+            f"({geo_data['reference_rate']:.1%})  \n"
+            f"- **Comparison Group (Lower Rate):** {geo_data['comparison_group']} "
+            f"({geo_data['comparison_rate']:.1%})"
+        )
+        st.metric(
+            label="Disparate Impact Ratio (Comparison / Reference)",
+            value=geo_data["ratio_display"],
+            help="Calculated as comparison approval rate divided by reference approval rate.",
+        )
+
+    # Full audit metrics summary table
+    summary_rows = []
+    for dim_key, dim_info in audit_results["dimensions"].items():
+        summary_rows.append(
+            {
+                "Audit Dimension": dim_info["dimension_name"],
+                "Reference Group": f"{dim_info['reference_group']} ({dim_info['reference_rate']:.1%})",
+                "Comparison Group": f"{dim_info['comparison_group']} ({dim_info['comparison_rate']:.1%})",
+                "Disparate Impact Ratio": dim_info["ratio_display"],
+                "Four-Fifths Rule (≥ 0.80)": (
+                    "Pass (Synthetic)"
+                    if dim_info["disparate_impact_ratio"] is not None and dim_info["disparate_impact_ratio"] >= 0.80
+                    else "Check / Disparity"
+                ),
+                "Zero-Rate Check": "Valid (Reference Rate > 0%)" if dim_info["reference_rate"] > 0 else "Undefined",
+            }
+        )
+    st.table(pd.DataFrame(summary_rows))
+
+    # Explicit governance and limitations warning
+    st.warning(
+        "⚠️ **CRITICAL FAIRNESS & GOVERNANCE LIMITATIONS:**  \n\n"
+        "1. **Omitting Demographics Does NOT Guarantee Fairness:**  \n"
+        "Excluding `gender` and `geography` from model inputs eliminates direct disparate treatment, "
+        "but does **not** protect against indirect proxy discrimination. Legitimate financial signals "
+        "(such as income stability or savings buffers) can still reflect historical structural economic disparities.  \n\n"
+        "2. **Synthetic Data Disclaimer:**  \n"
+        "These fairness figures are calculated strictly from a synthetic research prototype. "
+        "They do **not** establish real-world fairness, legal compliance, or real-world non-discriminatory lending "
+        "under statutory standards (such as the Equal Credit Opportunity Act - ECOA)."
     )
 
 
@@ -645,9 +735,19 @@ def main() -> None:
     render_what_if_simulator(model, features, selected_persona["name"])
 
     st.divider()
+
+    # Synthetic fairness audit
+    fairness_audit = calculate_fairness_metrics(
+        model=model,
+        evaluation_data=df_synthetic,
+        threshold=DEFAULT_AUDIT_APPROVAL_THRESHOLD,
+    )
+    render_fairness_audit(fairness_audit)
+
+    st.divider()
     st.info(
-        "**Slice 8 Active:** Interactive what-if simulator enabled for all four behavioral features. "
-        "Recalculations update live beside baseline. Fairness audit and disparate impact analysis (Slice 9) will follow."
+        "**Slice 9 Active:** Group approval rates and disparate impact ratios calculated and displayed "
+        "for Gender and Urban/Rural groups. Demo script, final documentation, and end-to-end run-through (Slice 10) will follow."
     )
 
 
