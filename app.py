@@ -1,8 +1,8 @@
 """AltScore AI — Streamlit Application Dashboard.
 
-Slice 4: Generates and displays a reproducible synthetic dataset for model
-training and fairness auditing, strictly separating demographic metadata
-and simulated target labels from model input features.
+Slice 5: Trains a baseline logistic regression classifier on the four financial
+features and displays held-out evaluation metrics computed on synthetic test data.
+Demographic attributes are strictly excluded from training inputs.
 """
 
 from typing import Any, Dict, List
@@ -20,6 +20,7 @@ from data.synthetic_data import (
     get_target_column,
 )
 from features.extraction import extract_features
+from model.scoring import train_model
 
 
 def render_header() -> None:
@@ -230,6 +231,70 @@ def render_synthetic_dataset_summary(df: pd.DataFrame) -> None:
         )
 
 
+def render_model_evaluation(metrics: Dict[str, Any]) -> None:
+    """Display evaluation metrics from the held-out synthetic test split.
+
+    Args:
+        metrics: Dictionary of computed evaluation metrics and model metadata.
+    """
+    st.markdown("### 5. Baseline Scoring Model & Held-Out Evaluation")
+    st.caption(
+        "⚠️ **Synthetic-Data Evaluation Notice:** The metrics below evaluate the baseline "
+        "logistic regression model on a 25% held-out test split of the synthetic dataset. "
+        "They demonstrate algorithmic behavior on synthetic distributions and do **not** "
+        "predict real-world performance, default rates, or individual creditworthiness."
+    )
+
+    # Core evaluation metrics cards
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric(
+            label="ROC-AUC (Synthetic Test)",
+            value=f"{metrics['roc_auc']:.3f}",
+            help="Area under the Receiver Operating Characteristic curve; measures ranking quality on unseen test records.",
+        )
+    with col2:
+        st.metric(
+            label="Accuracy (Synthetic Test)",
+            value=f"{metrics['accuracy']:.1%}",
+            help="Fraction of held-out test samples classified correctly at default threshold 0.50.",
+        )
+    with col3:
+        st.metric(
+            label="Precision (Synthetic Test)",
+            value=f"{metrics['precision']:.1%}",
+            help="Fraction of predicted positive repayments that were actual repayments in test split.",
+        )
+    with col4:
+        st.metric(
+            label="Recall (Synthetic Test)",
+            value=f"{metrics['recall']:.1%}",
+            help="Fraction of actual test repayments correctly identified by the model.",
+        )
+
+    # Model specifications and fitted coefficients expander
+    with st.expander("🔍 Model Architecture & Fitted Coefficients"):
+        st.write(
+            f"**Model Type:** `LogisticRegression` (Scikit-Learn baseline)  \n"
+            f"**Training Set Size:** {metrics['train_samples']} samples (75% split)  \n"
+            f"**Held-Out Test Set Size:** {metrics['test_samples']} samples (25% stratified split)  \n"
+            f"**Model Intercept (\\(\\beta_0\\)):** `{metrics['intercept']}`"
+        )
+
+        # Display coefficients as a clean table
+        coef_df = pd.DataFrame(
+            [
+                {"Feature": col, "Learned Weight (β)": coef}
+                for col, coef in metrics["coefficients"].items()
+            ]
+        )
+        st.table(coef_df)
+        st.caption(
+            "Interpretation: Positive coefficients indicate that higher behavioral values "
+            "increase the log-odds of simulated loan repayment."
+        )
+
+
 def main() -> None:
     """Build the dashboard and render current slice components."""
     # st.set_page_config must be called as the first Streamlit command
@@ -274,10 +339,16 @@ def main() -> None:
     render_synthetic_dataset_summary(df_synthetic)
 
     st.divider()
+
+    # Baseline model training and held-out evaluation
+    _, eval_metrics = train_model(df_synthetic, seed=DEFAULT_SEED)
+    render_model_evaluation(eval_metrics)
+
+    st.divider()
     st.info(
-        "**Slice 4 Active:** Reproducible synthetic dataset (1,000 rows, seed=42) generated. "
-        "Demographic audit attributes and target labels are strictly separated from feature inputs. "
-        "Baseline model training and held-out evaluation (Slice 5) will follow."
+        "**Slice 5 Active:** Baseline logistic regression trained on 4 behavioral financial features. "
+        "Held-out evaluation metrics displayed (750 train / 250 test split). "
+        "Persona prediction, illustrative 300–900 score, and risk categories (Slice 6) will follow."
     )
 
 
