@@ -1,8 +1,7 @@
 """AltScore AI — Streamlit Application Dashboard.
 
-Slice 2: Displays synthetic applicant personas and their transaction histories.
-Demographic attributes are presented strictly as profile/audit metadata
-and are separated from any predictive modeling features.
+Slice 3: Calculates and displays the four alternative financial features
+extracted from the selected persona's transaction history.
 """
 
 from typing import Any, Dict, List
@@ -11,6 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from data.personas import get_personas
+from features.extraction import extract_features
 
 
 def render_header() -> None:
@@ -126,6 +126,59 @@ def render_transaction_table(transactions: List[Dict[str, Any]]) -> None:
     st.caption(f"Showing all {len(df_display)} recorded synthetic transactions.")
 
 
+def render_extracted_features(features: Dict[str, float]) -> None:
+    """Display the four extracted alternative credit features and their documentation.
+
+    Args:
+        features: Dictionary of calculated feature values.
+    """
+    st.markdown("### 3. Extracted Financial Features")
+    st.write(
+        "The following behavioral features are calculated directly from transaction history "
+        "and liquid cash reserves. Demographic fields are completely excluded."
+    )
+
+    # Display 4 metrics in horizontal columns
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric(
+            label="Income Stability",
+            value=f"{features['income_stability']:.2f}",
+            help="Range: 0.00–1.00. 1.00 = completely consistent monthly income across months.",
+        )
+    with col2:
+        st.metric(
+            label="Bill-Payment Consistency",
+            value=f"{features['bill_payment_consistency']:.2f}",
+            help="Range: 0.00–1.00. Fraction of recorded utility bills paid on time.",
+        )
+    with col3:
+        st.metric(
+            label="Payment Regularity",
+            value=f"{features['payment_regularity']:.2f}",
+            help="Range: 0.00–1.00. Fraction of observation months with >= 1 incoming payment.",
+        )
+    with col4:
+        st.metric(
+            label="Liquidity Buffer",
+            value=f"{features['financial_liquidity_buffer']:.2f} mos",
+            help="Range: 0.00–6.00 months. Liquid balance / average monthly essential outflow.",
+        )
+
+    # Document formulas and missing data policies in an expander
+    with st.expander("📖 Feature Definitions & Missing-Data Documentation"):
+        st.markdown(
+            """
+            | Feature | Unit & Range | Formula | Explicit Missing-Data Policy |
+            | :--- | :--- | :--- | :--- |
+            | **Income Stability** | Score (0.00–1.00) | $\\max(0, 1 - \\sigma / \\mu)$ across monthly incomes | If no income is recorded, returns `0.00`. If only 1 month is available, variation is 0, returns `1.00`. |
+            | **Bill-Payment Consistency** | Ratio (0.00–1.00) | $\\text{On-time bills} / \\text{Total bills}$ | **Zero bills recorded does NOT count as missed payments.** Default is neutral `1.00` (no adverse events recorded). |
+            | **Payment Regularity** | Ratio (0.00–1.00) | $\\text{Months with income} / \\text{Total observed months}$ | If zero transactions exist in account history, returns `0.00`. |
+            | **Financial Liquidity Buffer** | Months (0.00–6.00) | $\\min(6.0, \\text{Liquid Balance} / \\text{Monthly Essential Outflow})$ | If zero essential outflows exist, capped at `6.00` months. Negative balance floored at `0.00`. Strictly capped at `6.00` months. |
+            """
+        )
+
+
 def main() -> None:
     """Build the dashboard and render current slice components."""
     # st.set_page_config must be called as the first Streamlit command
@@ -155,9 +208,18 @@ def main() -> None:
     render_transaction_table(selected_persona["transactions"])
 
     st.divider()
+
+    # Feature extraction and display
+    features = extract_features(
+        transactions=selected_persona["transactions"],
+        liquid_balance=selected_persona["liquid_balance"],
+    )
+    render_extracted_features(features)
+
+    st.divider()
     st.info(
-        "**Slice 2 Active:** Synthetic personas and transaction records displayed. "
-        "Feature extraction (Slice 3) and baseline scoring model (Slice 5) "
+        "**Slice 3 Active:** Four financial features extracted from transactions. "
+        "Synthetic training data generation (Slice 4) and baseline scoring model (Slice 5) "
         "will be implemented in subsequent slices."
     )
 
