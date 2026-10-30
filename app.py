@@ -1,13 +1,14 @@
 """AltScore AI — Streamlit Application Dashboard.
 
-Slice 7: Generates and displays model-linked local prediction explanations
-for the selected persona, clearly distinguishing local feature contributions
-from global model coefficients and distinguishing correlation from causation.
+Slice 8: Adds interactive what-if controls for all four financial features
+and shows real-time recalculated model predictions, scores, risk categories,
+and linear explanations beside the active persona's baseline.
 """
 
 from typing import Any, Dict, List
 
 import pandas as pd
+from sklearn.linear_model import LogisticRegression
 import streamlit as st
 
 from data.personas import get_personas
@@ -425,6 +426,151 @@ def render_prediction_explanation(
     )
 
 
+def render_what_if_simulator(
+    model: LogisticRegression,
+    baseline_features: Dict[str, float],
+    persona_name: str,
+) -> None:
+    """Render interactive what-if controls and display recalculated results beside baseline.
+
+    Args:
+        model: Fitted LogisticRegression classifier.
+        baseline_features: The active persona's baseline feature dictionary.
+        persona_name: Name of the active persona.
+    """
+    st.markdown("### 8. Interactive What-If Scenario Simulator")
+    st.write(
+        f"Simulate adjustments to **{persona_name}'s** financial behaviors and observe "
+        "how the trained logistic regression model recalculates their repayment probability, "
+        "illustrative credit score, risk category, and local explanation in real time."
+    )
+
+    # 4 interactive sliders initialized at the active persona's baseline values
+    st.markdown("##### Adjust Financial Behavioral Inputs:")
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        adj_income_stability = st.slider(
+            label="Income Stability (0.00 – 1.00)",
+            min_value=0.0,
+            max_value=1.0,
+            value=float(baseline_features["income_stability"]),
+            step=0.01,
+            help="Higher value reflects more consistent monthly income.",
+            key=f"what_if_income_stability_{persona_name}",
+        )
+        adj_bill_consistency = st.slider(
+            label="Bill-Payment Consistency (0.00 – 1.00)",
+            min_value=0.0,
+            max_value=1.0,
+            value=float(baseline_features["bill_payment_consistency"]),
+            step=0.01,
+            help="Fraction of recorded bills paid on time.",
+            key=f"what_if_bill_consistency_{persona_name}",
+        )
+    with col_c2:
+        adj_payment_regularity = st.slider(
+            label="Payment Regularity (0.00 – 1.00)",
+            min_value=0.0,
+            max_value=1.0,
+            value=float(baseline_features["payment_regularity"]),
+            step=0.01,
+            help="Fraction of months with recorded income payments.",
+            key=f"what_if_payment_regularity_{persona_name}",
+        )
+        adj_liquidity_buffer = st.slider(
+            label="Financial Liquidity Buffer (0.0 – 6.0 months)",
+            min_value=0.0,
+            max_value=6.0,
+            value=float(baseline_features["financial_liquidity_buffer"]),
+            step=0.1,
+            help="Months of essential outflow covered by liquid savings.",
+            key=f"what_if_liquidity_buffer_{persona_name}",
+        )
+
+    # Assemble adjusted features dictionary
+    adjusted_features = {
+        "income_stability": adj_income_stability,
+        "bill_payment_consistency": adj_bill_consistency,
+        "payment_regularity": adj_payment_regularity,
+        "financial_liquidity_buffer": adj_liquidity_buffer,
+    }
+
+    # Baseline calculations
+    baseline_prob = predict_repayment_probability(model, baseline_features)
+    baseline_score = probability_to_score(baseline_prob)
+    baseline_category = categorize_risk(baseline_prob)
+    baseline_exp = explain_prediction(model, baseline_features)
+
+    # Recalculate outputs through the same model pipeline
+    adjusted_prob = predict_repayment_probability(model, adjusted_features)
+    adjusted_score = probability_to_score(adjusted_prob)
+    adjusted_category = categorize_risk(adjusted_prob)
+    adjusted_exp = explain_prediction(model, adjusted_features)
+
+    # Side-by-side comparison cards
+    st.markdown("##### Baseline vs. Simulated Outcome Comparison:")
+    comp_col1, comp_col2 = st.columns(2)
+
+    with comp_col1:
+        st.markdown(f"**Current Persona Baseline ({persona_name})**")
+        st.metric(
+            label="Baseline Repayment Probability",
+            value=f"{baseline_prob:.1%}",
+        )
+        st.metric(
+            label="Baseline Illustrative Score",
+            value=str(baseline_score),
+        )
+        st.metric(
+            label="Baseline Risk Classification",
+            value=baseline_category,
+        )
+
+    with comp_col2:
+        st.markdown("**Simulated Scenario (Adjusted Values)**")
+        prob_delta = adjusted_prob - baseline_prob
+        score_delta = adjusted_score - baseline_score
+
+        st.metric(
+            label="Simulated Repayment Probability",
+            value=f"{adjusted_prob:.1%}",
+            delta=f"{prob_delta:+.1%}" if prob_delta != 0 else "No change",
+        )
+        st.metric(
+            label="Simulated Illustrative Score",
+            value=str(adjusted_score),
+            delta=f"{score_delta:+d} pts" if score_delta != 0 else "No change",
+        )
+        st.metric(
+            label="Simulated Risk Classification",
+            value=adjusted_category,
+            delta="Shifted" if adjusted_category != baseline_category else "Unchanged",
+            delta_color="normal" if adjusted_category == baseline_category else "inverse",
+        )
+
+    # Explanation comparison breakdown table
+    with st.expander("🔍 Detailed Comparison of Feature Contributions"):
+        comp_rows = []
+        for b_item, a_item in zip(baseline_exp["contributions"], adjusted_exp["contributions"]):
+            comp_rows.append(
+                {
+                    "Feature": b_item["display_name"],
+                    "Baseline Value": f"{b_item['value']:.2f}",
+                    "Simulated Value": f"{a_item['value']:.2f}",
+                    "Baseline Contribution (β×x)": f"{b_item['contribution']:+.4f}",
+                    "Simulated Contribution (β×x)": f"{a_item['contribution']:+.4f}",
+                    "Logit Shift": f"{a_item['contribution'] - b_item['contribution']:+.4f}",
+                }
+            )
+        st.table(pd.DataFrame(comp_rows))
+
+    st.warning(
+        "⚠️ **Simulation Notice:** Simulated score improvements illustrate the statistical "
+        "sensitivity of the model. In real underwriting, improving synthetic indicators does not "
+        "guarantee real loan approval or shield borrowers from unexpected external hardships."
+    )
+
+
 def main() -> None:
     """Build the dashboard and render current slice components."""
     # st.set_page_config must be called as the first Streamlit command
@@ -494,9 +640,14 @@ def main() -> None:
     render_prediction_explanation(explanation, selected_persona["name"])
 
     st.divider()
+
+    # Interactive what-if scenario simulator
+    render_what_if_simulator(model, features, selected_persona["name"])
+
+    st.divider()
     st.info(
-        "**Slice 7 Active:** Model-linked local prediction explanation generated and displayed. "
-        "What-if scenario simulator (Slice 8) will follow."
+        "**Slice 8 Active:** Interactive what-if simulator enabled for all four behavioral features. "
+        "Recalculations update live beside baseline. Fairness audit and disparate impact analysis (Slice 9) will follow."
     )
 
 
