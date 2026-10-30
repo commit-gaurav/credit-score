@@ -1,8 +1,8 @@
-"""Model training, scoring, and evaluation for AltScore AI.
+"""Model training, scoring, evaluation, and explanation for AltScore AI.
 
 Implements baseline logistic regression training on synthetic alternative
-credit signals, probability estimation, illustrative score mapping, and
-risk categorization.
+credit signals, probability estimation, illustrative score mapping,
+risk categorization, and local linear prediction explanations.
 
 Rules enforced:
 - Strictly reproducible train/test split with fixed random seed.
@@ -12,9 +12,11 @@ Rules enforced:
   and labeled as synthetic evaluation results.
 - Score mapping follows the exact formula: 300 + 600 * probability.
 - All numbers are dynamically computed from data and model; no hardcoding.
+- Explanations distinguish local feature contributions from global model weights,
+  and avoid describing statistical associations as causal guarantees.
 """
 
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
@@ -35,6 +37,14 @@ DEFAULT_TEST_SIZE: float = 0.25
 # Documented Risk Category Thresholds (Repayment Probability)
 LOW_RISK_THRESHOLD: float = 0.85    # Equivalent to illustrative score >= 810
 MEDIUM_RISK_THRESHOLD: float = 0.70  # Equivalent to illustrative score 720 - 809
+
+# Human-readable labels for display
+FEATURE_DISPLAY_NAMES: Dict[str, str] = {
+    "income_stability": "Income Stability",
+    "bill_payment_consistency": "Bill-Payment Consistency",
+    "payment_regularity": "Payment Regularity",
+    "financial_liquidity_buffer": "Financial Liquidity Buffer",
+}
 
 
 def train_model(
@@ -167,3 +177,56 @@ def categorize_risk(probability: float) -> str:
         return "Medium Risk"
     else:
         return "High Risk"
+
+
+def explain_prediction(
+    model: LogisticRegression,
+    features: Dict[str, float],
+) -> Dict[str, Any]:
+    """Provide a local linear explanation for an individual persona's prediction.
+
+    In logistic regression, the estimated log-odds (logit) of repayment decomposes into:
+        logit = beta_0 + sum(beta_i * x_i)
+    where:
+        - beta_0: base intercept
+        - beta_i: global model coefficient for feature i (general importance across dataset)
+        - x_i: persona's actual feature value
+        - beta_i * x_i: local linear contribution of feature i to this specific applicant's log-odds
+
+    Args:
+        model: Fitted LogisticRegression classifier.
+        features: Active feature dictionary for the persona.
+
+    Returns:
+        Dict[str, Any]: Detailed breakdown including intercept, local feature contributions,
+        total logit, and implied probability.
+    """
+    feature_cols = get_feature_columns()
+    intercept = float(model.intercept_[0])
+
+    contributions: List[Dict[str, Any]] = []
+    total_logit = intercept
+
+    for col, coef in zip(feature_cols, model.coef_[0]):
+        val = float(features[col])
+        contrib = float(coef * val)
+        total_logit += contrib
+        contributions.append(
+            {
+                "feature": col,
+                "display_name": FEATURE_DISPLAY_NAMES.get(col, col),
+                "value": round(val, 4),
+                "weight": round(float(coef), 4),
+                "contribution": round(contrib, 4),
+            }
+        )
+
+    # Sigmoid function reconstructs predicted probability from total logit
+    implied_prob = 1.0 / (1.0 + (2.718281828459045 ** (-total_logit)))
+
+    return {
+        "intercept": round(intercept, 4),
+        "contributions": contributions,
+        "total_logit": round(total_logit, 4),
+        "implied_probability": round(float(implied_prob), 4),
+    }

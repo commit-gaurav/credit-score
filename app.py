@@ -1,8 +1,8 @@
 """AltScore AI — Streamlit Application Dashboard.
 
-Slice 6: Computes and displays the selected persona's model-generated repayment
-probability, illustrative 300–900 credit score, and risk category using
-the trained baseline logistic regression model.
+Slice 7: Generates and displays model-linked local prediction explanations
+for the selected persona, clearly distinguishing local feature contributions
+from global model coefficients and distinguishing correlation from causation.
 """
 
 from typing import Any, Dict, List
@@ -22,6 +22,7 @@ from data.synthetic_data import (
 from features.extraction import extract_features
 from model.scoring import (
     categorize_risk,
+    explain_prediction,
     predict_repayment_probability,
     probability_to_score,
     train_model,
@@ -360,6 +361,70 @@ def render_persona_scoring(
         )
 
 
+def render_prediction_explanation(
+    explanation: Dict[str, Any],
+    persona_name: str,
+) -> None:
+    """Display the local linear explanation of the persona's prediction.
+
+    Args:
+        explanation: Dictionary of local feature contributions and net logit.
+        persona_name: Name of the current active persona.
+    """
+    st.markdown("### 7. Model-Linked Prediction Explanation")
+    st.write(
+        f"How each financial behavioral feature contributes to the predicted repayment outcome "
+        f"for **{persona_name}** under the fitted logistic regression model:"
+    )
+
+    # Format contributions into a clear presentation table
+    rows = []
+    for item in explanation["contributions"]:
+        rows.append(
+            {
+                "Behavioral Feature": item["display_name"],
+                "Applicant Value (x)": f"{item['value']:.4f}",
+                "Model Weight (β)": f"{item['weight']:+.4f}",
+                "Local Contribution to Logit (β × x)": f"{item['contribution']:+.4f}",
+                "Contribution Direction": "Positive (+)" if item["contribution"] >= 0 else "Negative (-)",
+            }
+        )
+
+    contrib_df = pd.DataFrame(rows)
+    st.table(contrib_df)
+
+    # Logit decomposition summary metrics
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(
+            label="Base Model Intercept (β₀)",
+            value=f"{explanation['intercept']:+.4f}",
+            help="Starting baseline log-odds before observing individual applicant behavior.",
+        )
+    with col2:
+        st.metric(
+            label="Net Total Logit (β₀ + Σ βᵢxᵢ)",
+            value=f"{explanation['total_logit']:+.4f}",
+            help="Sum of baseline intercept and all local feature contributions.",
+        )
+    with col3:
+        st.metric(
+            label="Implied Repayment Probability",
+            value=f"{explanation['implied_probability']:.1%}",
+            help="Logistic sigmoid transformation: 1 / (1 + exp(-Total Logit))",
+        )
+
+    st.info(
+        "💡 **Local Explanation vs. Global Feature Importance:**  \n"
+        "- **Global Weight (β):** Indicates the general sensitivity of the model learned across all training rows.  \n"
+        "- **Local Contribution (β × x):** Reflects the exact impact on **this specific applicant's** prediction, "
+        "multiplying the model weight by the applicant's observed feature value.  \n"
+        "- **Correlation vs. Causation:** These contributions describe statistical associations learned "
+        "from synthetic data, not causal guarantees. Improving a metric (e.g. liquidity) increases the model's "
+        "estimated probability, but real-world repayment depends on broader economic circumstances."
+    )
+
+
 def main() -> None:
     """Build the dashboard and render current slice components."""
     # st.set_page_config must be called as the first Streamlit command
@@ -423,10 +488,15 @@ def main() -> None:
     )
 
     st.divider()
+
+    # Model-linked prediction explanation
+    explanation = explain_prediction(model, features)
+    render_prediction_explanation(explanation, selected_persona["name"])
+
+    st.divider()
     st.info(
-        "**Slice 6 Active:** Persona repayment probability, illustrative 300–900 score, "
-        "and risk category dynamically generated from trained model. "
-        "Model-linked prediction explanations (Slice 7) will follow."
+        "**Slice 7 Active:** Model-linked local prediction explanation generated and displayed. "
+        "What-if scenario simulator (Slice 8) will follow."
     )
 
 
