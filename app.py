@@ -1,8 +1,11 @@
 """AltScore AI — Streamlit Application Dashboard.
 
-Slice 9: Calculates and displays the synthetic fairness audit for Gender
-and Urban/Rural groups, computing approval rates, reference/comparison groups,
-and disparate impact ratios with explicit zero-rate handling.
+Slice 10: Complete, polished interactive credit intelligence dashboard.
+Features end-to-end persona selection, behavioral feature extraction,
+baseline logistic regression training with held-out evaluation,
+calibrated probability estimation, illustrative credit scoring (300-900),
+exact local linear explanations, real-time what-if scenario exploration,
+and demographic fairness auditing (disparate impact analysis).
 """
 
 from typing import Any, Dict, List
@@ -745,9 +748,10 @@ def main() -> None:
     render_fairness_audit(fairness_audit)
 
     st.divider()
-    st.info(
-        "**Slice 9 Active:** Group approval rates and disparate impact ratios calculated and displayed "
-        "for Gender and Urban/Rural groups. Demo script, final documentation, and end-to-end run-through (Slice 10) will follow."
+    st.success(
+        "✨ **Slice 10 Complete — Full Prototype Active:** All 10 development slices implemented, verified, "
+        "and documented. Explore the synthetic personas, inspect behavioral features, run what-if simulations, "
+        "and review the demographic fairness audit."
     )
 
 
