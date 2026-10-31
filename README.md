@@ -19,6 +19,7 @@ credit-score/
 ├── requirements.txt            # Python dependencies (Streamlit, pandas, scikit-learn, etc.)
 ├── PLAN.md                     # Architecture specification, 10-slice build plan, decisions log
 ├── README.md                   # Complete documentation, math formulations, and judge demo script
+├── BACKEND.md                  # Plain-English backend architecture and workflow guide
 ├── data/
 │   ├── __init__.py
 │   ├── personas.py             # 3 synthetic profiles & 6-month transaction ledgers
@@ -33,6 +34,8 @@ credit-score/
     ├── __init__.py
     └── audit.py                # Disparate impact auditing across gender & geography
 ```
+
+> 📖 **Deep Dive into the Backend:** For an end-to-end, plain-English breakdown of how every file and library works in sequence, read [BACKEND.md](file:///d:/credit%20project/BACKEND.md).
 
 ---
 
