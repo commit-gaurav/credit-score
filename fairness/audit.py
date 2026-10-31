@@ -120,3 +120,4 @@ def calculate_fairness_metrics(
         "total_records": len(evaluation_data),
         "dimensions": dimensions_result,
     }
+

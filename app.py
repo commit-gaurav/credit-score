@@ -8,7 +8,14 @@ exact local linear explanations, real-time what-if scenario exploration,
 and demographic fairness auditing (disparate impact analysis).
 """
 
+from pathlib import Path
+import sys
 from typing import Any, Dict, List
+
+# Ensure project root directory is in sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
@@ -35,6 +42,14 @@ from model.scoring import (
     probability_to_score,
     train_model,
 )
+
+
+def render_dataframe(df: pd.DataFrame, hide_index: bool = False) -> None:
+    """Render a DataFrame using modern width styling with backward compatibility."""
+    try:
+        st.dataframe(df, width="stretch", hide_index=hide_index)
+    except (TypeError, ValueError):
+        st.dataframe(df, use_container_width=True, hide_index=hide_index)
 
 
 def render_header() -> None:
@@ -146,7 +161,7 @@ def render_transaction_table(transactions: List[Dict[str, Any]]) -> None:
     # Format numeric amounts with comma separation and 2 decimals
     df_display["Amount (₹)"] = df_display["Amount (₹)"].apply(lambda amt: f"₹{amt:,.2f}")
 
-    st.dataframe(df_display, use_container_width=True, hide_index=True)
+    render_dataframe(df_display, hide_index=True)
     st.caption(f"Showing all {len(df_display)} recorded synthetic transactions.")
 
 
@@ -230,11 +245,11 @@ def render_synthetic_dataset_summary(df: pd.DataFrame) -> None:
 
     # Preview first 5 rows
     st.markdown("##### Dataset Sample Preview (First 5 Rows)")
-    st.dataframe(df.head(5), use_container_width=True, hide_index=True)
+    render_dataframe(df.head(5), hide_index=True)
 
     with st.expander("📊 Feature Distribution Statistics & Generation Methodology"):
         st.markdown("**Descriptive Statistics for Model Features:**")
-        st.dataframe(df[get_feature_columns()].describe().round(3), use_container_width=True)
+        render_dataframe(df[get_feature_columns()].describe().round(3))
         st.markdown(
             """
             **Target Generation & Governance Rules:**
@@ -292,7 +307,7 @@ def render_model_evaluation(metrics: Dict[str, Any]) -> None:
             f"**Model Type:** `LogisticRegression` (Scikit-Learn baseline)  \n"
             f"**Training Set Size:** {metrics['train_samples']} samples (75% split)  \n"
             f"**Held-Out Test Set Size:** {metrics['test_samples']} samples (25% stratified split)  \n"
-            f"**Model Intercept (\\(\\beta_0\\)):** `{metrics['intercept']}`"
+            f"**Model Intercept (β₀):** `{metrics['intercept']}`"
         )
 
         # Display coefficients as a clean table
@@ -595,7 +610,7 @@ def render_fairness_audit(audit_results: Dict[str, Any]) -> None:
     threshold = audit_results["threshold"]
     st.caption(
         f"📋 **Documented Approval Rule:** Borrowers with estimated repayment probability "
-        f"**\\(P \\ge {threshold:.1%}\\)** (equivalent to Illustrative Score \\(\\ge 720\\)) are classified as approved."
+        f"**P ≥ {threshold:.1%}** (equivalent to Illustrative Score ≥ 720) are classified as approved."
     )
 
     # Display side-by-side metric cards for Gender and Geography
