@@ -1,14 +1,15 @@
 """AltScore AI — Explainable Alternative Credit Intelligence & Algorithmic Fairness Platform.
 
-Synthetic research prototype and non-lending evaluation tool for thin-file borrowers.
-Modular, accessible FinTech interface integrating:
-- Design A: The Consumer Trust Passbook (Warm, jargon-free, mobile-optimized)
-- Design B: Dual-Mode Switcher (Borrower vs. Institutional Underwriter & Auditor)
+Flagship FinTech credit intelligence dashboard designed for thin-file borrower evaluation.
+Featuring:
+- Design A: The Consumer Trust Passbook (Warm, mobile-optimized, jargon-free)
+- Design B: Dual-Mode Switcher (Borrower Lens vs. Institutional Underwriter & Auditor Lens)
 - Design C: The Interactive What-If Coach (Real-time reactive scenario simulation)
 """
 
 from pathlib import Path
 import sys
+import textwrap
 from typing import Any, Dict, Tuple
 
 # Ensure project root directory is in sys.path
@@ -41,14 +42,31 @@ from model.scoring import (
 
 
 # =============================================================================
-# 1. Custom CSS Injection (Design System & Theme Normalization)
+# HTML / Markdown Rendering Helper (Prevents Indented Code Block Leakage)
+# =============================================================================
+def render_html(html_str: str) -> None:
+    """Render HTML safely without indentation-induced Markdown code blocks.
+
+    Strips all leading whitespace line-by-line so CommonMark never treats
+    HTML lines as 4-space indented <pre><code> blocks.
+    """
+    cleaned = textwrap.dedent(html_str).strip()
+    lines = [line.strip() for line in cleaned.splitlines()]
+    clean_html = "\n".join(lines)
+    st.markdown(clean_html, unsafe_allow_html=True)
+
+
+# =============================================================================
+# 1. Custom CSS Injection (Flagship FinTech Design System & Mobile First)
 # =============================================================================
 def inject_custom_css() -> None:
-    """Inject scoped CSS with CSS variables, fixing all dark/light contrast bugs."""
+    """Inject responsive FinTech design system with CSS tokens and dark mode overrides."""
     css_content = """
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
+
     /* --------------------------------------------------
-       Design Tokens & CSS Variables (:root)
+       CSS Design Tokens (:root)
     -------------------------------------------------- */
     :root {
         --bg-main: #F8FAFC;
@@ -59,10 +77,10 @@ def inject_custom_css() -> None:
         --card-border: #E2E8F0;
         --sidebar-bg: #1E293B;
         --sidebar-text: #F1F5F9;
-        --sidebar-muted: #94A3B8;
         --accent-blue: #2563EB;
         --accent-blue-hover: #1D4ED8;
         --accent-emerald: #10B981;
+        --accent-indigo: #4F46E5;
         --risk-low-bg: #ECFDF5;
         --risk-low-text: #065F46;
         --risk-low-border: #A7F3D0;
@@ -75,15 +93,15 @@ def inject_custom_css() -> None:
     }
 
     /* --------------------------------------------------
-       Main App Canvas & Contrast Normalization
+       Main App Canvas & Font Reset
     -------------------------------------------------- */
     .stApp {
         background-color: var(--bg-main) !important;
         color: var(--text-primary) !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
 
-    /* Force high-contrast text on all main-area containers regardless of OS Dark Mode */
+    /* Constrained Container Layout */
     .main .block-container {
         max-width: 1200px !important;
         padding-top: 1.25rem !important;
@@ -93,6 +111,7 @@ def inject_custom_css() -> None:
         color: var(--text-primary) !important;
     }
 
+    /* High-Contrast Canvas Text Normalization */
     .main p, .main span, .main label, .main div,
     .main div[data-testid="stMarkdownContainer"] p,
     .main div[data-testid="stMarkdownContainer"] span,
@@ -103,11 +122,11 @@ def inject_custom_css() -> None:
     .main h1, .main h2, .main h3, .main h4, .main h5, .main h6 {
         color: var(--text-primary) !important;
         font-weight: 700 !important;
-        letter-spacing: -0.015em;
+        letter-spacing: -0.02em;
     }
 
     /* --------------------------------------------------
-       Hide Streamlit Boilerplate (Keep Sidebar Toggle)
+       Streamlit Boilerplate Cleanup (Keep Sidebar Toggle)
     -------------------------------------------------- */
     header[data-testid="stHeader"] {
         background: transparent !important;
@@ -115,17 +134,19 @@ def inject_custom_css() -> None:
     .stDeployButton, [data-testid="stToolbarActions"], footer, #MainMenu {
         display: none !important;
     }
-    [data-testid="stSidebarCollapsedControl"] {
-        display: block !important;
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="collapsedControl"] {
+        display: flex !important;
         color: var(--text-primary) !important;
         background: #FFFFFF !important;
         border: 1px solid var(--card-border) !important;
         border-radius: 8px !important;
         padding: 4px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
     }
 
     /* --------------------------------------------------
-       Sidebar Styling (Deep Slate Dark Theme)
+       Sidebar Styling (Deep Slate Dark Aesthetic)
     -------------------------------------------------- */
     section[data-testid="stSidebar"] {
         background-color: var(--sidebar-bg) !important;
@@ -158,20 +179,20 @@ def inject_custom_css() -> None:
        Hero Banner Card
     -------------------------------------------------- */
     .alt-hero-banner {
-        background: linear-gradient(135deg, #162235 0%, #0F172A 100%);
+        background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
         padding: 24px 30px;
         border-radius: 16px;
         color: #FFFFFF !important;
         margin-bottom: 16px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
-        border: 1px solid #334155;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.10);
     }
     .alt-hero-title {
-        font-size: 1.85rem;
+        font-size: 1.95rem;
         font-weight: 800;
         color: #FFFFFF !important;
         margin: 0;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.025em;
     }
     .alt-hero-subtitle {
         font-size: 0.94rem;
@@ -179,19 +200,20 @@ def inject_custom_css() -> None:
         margin-top: 5px;
     }
     .alt-pill-badge {
-        background: rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.10);
         color: #F8FAFC !important;
-        border: 1px solid rgba(255, 255, 255, 0.22);
-        padding: 5px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.20);
+        padding: 6px 14px;
         border-radius: 9999px;
         font-size: 0.80rem;
         font-weight: 600;
         display: inline-block;
         letter-spacing: 0.02em;
+        backdrop-filter: blur(8px);
     }
 
     /* --------------------------------------------------
-       Disclaimer & Warning Banner (Soft Amber Theme)
+       Disclaimer Alert Banner (Soft Amber Theme)
     -------------------------------------------------- */
     .alt-disclaimer-banner {
         background-color: #FFFBEB !important;
@@ -199,83 +221,123 @@ def inject_custom_css() -> None:
         border-left: 5px solid #F59E0B !important;
         border-radius: 10px !important;
         padding: 14px 20px !important;
-        margin-bottom: 20px !important;
+        margin-bottom: 18px !important;
         color: #92400E !important;
         font-size: 0.88rem !important;
         line-height: 1.5 !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
     .alt-disclaimer-banner strong {
         color: #78350F !important;
     }
 
     /* --------------------------------------------------
-       Segmented View Switcher (Fixes red circle / dot bug)
+       Segmented Lens Switcher (Fixes Invisible Text & Red Dot)
     -------------------------------------------------- */
     div[data-testid="stRadio"] {
-        margin-bottom: 20px !important;
+        margin: 18px 0 !important;
     }
-    div[data-testid="stRadio"] > div {
+    div[data-testid="stRadio"] div[role="radiogroup"] {
         display: flex !important;
+        flex-direction: row !important;
         gap: 8px !important;
         background: #E2E8F0 !important;
-        padding: 5px !important;
+        padding: 6px !important;
         border-radius: 12px !important;
         width: fit-content !important;
         border: 1px solid #CBD5E1 !important;
     }
     div[data-testid="stRadio"] label {
         background: transparent !important;
-        padding: 8px 20px !important;
+        padding: 10px 22px !important;
         border-radius: 9px !important;
         cursor: pointer !important;
         margin: 0 !important;
-        transition: all 0.2s ease !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
         border: 1px solid transparent !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
     div[data-testid="stRadio"] label:hover {
-        background: rgba(255, 255, 255, 0.6) !important;
+        background: rgba(255, 255, 255, 0.5) !important;
     }
+    /* Unselected Tab Text */
+    div[data-testid="stRadio"] label,
+    div[data-testid="stRadio"] label *,
+    div[data-testid="stRadio"] label p,
+    div[data-testid="stRadio"] label span,
+    div[data-testid="stRadio"] label div[data-testid="stMarkdownContainer"] p {
+        color: #475569 !important;
+        font-weight: 600 !important;
+        font-size: 0.90rem !important;
+        letter-spacing: -0.01em !important;
+    }
+    /* Active Selected Pill: FinTech Blue + Crisp White Text */
     div[data-testid="stRadio"] label:has(input:checked),
     div[data-testid="stRadio"] label[data-checked="true"] {
-        background: #FFFFFF !important;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
-        border: 1px solid #CBD5E1 !important;
+        background: #2563EB !important;
+        box-shadow: 0 4px 8px -1px rgba(37, 99, 235, 0.35), 0 2px 4px -1px rgba(37, 99, 235, 0.2) !important;
+        border: 1px solid #1D4ED8 !important;
     }
-    div[data-testid="stRadio"] label span {
-        color: #0F172A !important;
+    div[data-testid="stRadio"] label:has(input:checked) *,
+    div[data-testid="stRadio"] label:has(input:checked) p,
+    div[data-testid="stRadio"] label:has(input:checked) span,
+    div[data-testid="stRadio"] label:has(input:checked) div[data-testid="stMarkdownContainer"] p,
+    div[data-testid="stRadio"] label[data-checked="true"] *,
+    div[data-testid="stRadio"] label[data-checked="true"] p,
+    div[data-testid="stRadio"] label[data-checked="true"] span,
+    div[data-testid="stRadio"] label[data-checked="true"] div[data-testid="stMarkdownContainer"] p {
+        color: #FFFFFF !important;
         font-weight: 700 !important;
-        font-size: 0.90rem !important;
     }
-    /* Hide native radio button dot/circle */
+    /* Hide Default Radio Dot/Circle */
     div[data-testid="stRadio"] input[type="radio"],
     div[data-testid="stRadio"] div[data-testid="stRadioCircle"] {
         display: none !important;
     }
 
     /* --------------------------------------------------
-       Content Cards & KPI Boxes
+       FinTech Content Cards & Micro-Interactions
     -------------------------------------------------- */
     .alt-card {
         background: var(--card-bg) !important;
         border: 1px solid var(--card-border) !important;
         border-radius: 14px !important;
-        padding: 22px 26px !important;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
-        margin-bottom: 20px !important;
+        padding: 22px 24px !important;
+        box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.04) !important;
+        margin-bottom: 18px !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        overflow: hidden !important;
+        word-wrap: break-word !important;
+    }
+    .alt-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.07) !important;
     }
     .alt-card-header {
-        font-size: 0.85rem !important;
+        font-size: 0.82rem !important;
         font-weight: 700 !important;
         text-transform: uppercase !important;
         letter-spacing: 0.06em !important;
         color: var(--text-muted) !important;
-        margin-bottom: 14px !important;
+        margin-bottom: 12px !important;
         border-bottom: 1px solid #F1F5F9 !important;
         padding-bottom: 8px !important;
     }
 
-    /* Status Badges */
+    /* Card Top Accent Borders */
+    .card-accent-emerald {
+        border-top: 4px solid var(--accent-emerald) !important;
+    }
+    .card-accent-blue {
+        border-top: 4px solid var(--accent-blue) !important;
+    }
+    .card-accent-indigo {
+        border-top: 4px solid var(--accent-indigo) !important;
+    }
+
+    /* Semantic Status Badges */
     .badge-low-risk {
         background-color: var(--risk-low-bg) !important;
         color: var(--risk-low-text) !important;
@@ -310,14 +372,14 @@ def inject_custom_css() -> None:
         background-color: #F1F5F9 !important;
         color: #334155 !important;
         border: 1px solid #CBD5E1 !important;
-        padding: 3px 10px;
+        padding: 4px 11px;
         border-radius: 9999px;
         font-weight: 500;
         font-size: 0.80rem;
         display: inline-block;
     }
 
-    /* Custom Visual Progress Meters */
+    /* Progress Meters */
     .meter-bg {
         background-color: #E2E8F0;
         border-radius: 8px;
@@ -346,8 +408,8 @@ def inject_custom_css() -> None:
     .explainer-box {
         background-color: #F8FAFC !important;
         border-left: 4px solid var(--accent-blue) !important;
-        padding: 12px 18px !important;
-        border-radius: 0 8px 8px 0 !important;
+        padding: 14px 18px !important;
+        border-radius: 0 10px 10px 0 !important;
         margin-top: 12px !important;
         font-size: 0.88rem !important;
         color: #334155 !important;
@@ -355,25 +417,51 @@ def inject_custom_css() -> None:
         border-right: 1px solid #E2E8F0;
         border-bottom: 1px solid #E2E8F0;
     }
+
+    /* --------------------------------------------------
+       Mobile Responsive Overrides (@media max-width: 768px)
+    -------------------------------------------------- */
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-top: 0.75rem !important;
+            padding-bottom: 1.75rem !important;
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
+        }
+        .alt-hero-banner {
+            padding: 18px 20px !important;
+            border-radius: 12px !important;
+        }
+        .alt-hero-title {
+            font-size: 1.55rem !important;
+        }
+        .alt-hero-subtitle {
+            font-size: 0.84rem !important;
+        }
+        .alt-card {
+            padding: 16px 18px !important;
+            border-radius: 12px !important;
+        }
+        div[data-testid="stRadio"] div[role="radiogroup"] {
+            flex-direction: column !important;
+            width: 100% !important;
+        }
+        div[data-testid="stRadio"] label {
+            width: 100% !important;
+            text-align: center !important;
+            justify-content: center !important;
+        }
+    }
     </style>
     """
-    st.markdown(css_content, unsafe_allow_html=True)
+    render_html(css_content)
 
 
 # =============================================================================
-# Business Logic & Formatting Helpers
+# Business Logic & Micro-Loan Computation
 # =============================================================================
 def calculate_eligible_loan_limit(score: int, probability: float, liquid_balance: float) -> Dict[str, Any]:
-    """Calculate an illustrative pre-approved micro-loan limit in Indian Rupees (₹).
-
-    Args:
-        score: Illustrative score in [300, 900].
-        probability: Model estimated repayment probability.
-        liquid_balance: Persona current liquid reserve.
-
-    Returns:
-        Dict[str, Any]: Formatted limit, raw amount, interest rate, and status badge.
-    """
+    """Calculate an illustrative pre-approved micro-loan limit in Indian Rupees (₹)."""
     if score >= 810:
         base_limit = 75000.0
         calculated = base_limit + ((score - 810) * 450.0)
@@ -429,19 +517,14 @@ def get_risk_badge_html(category: str) -> str:
 # 2. Modular Component: Sidebar (Controls & What-If Coach)
 # =============================================================================
 def render_sidebar(personas: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, float], Dict[str, float], bool]:
-    """Render the sidebar with persona selector and interactive What-If sliders.
-
-    Returns:
-        Tuple: (selected_persona, baseline_features, sim_features, is_slider_adjusted)
-    """
-    st.sidebar.markdown(
+    """Render the sidebar with persona selector and interactive What-If sliders."""
+    render_html(
         """
-        <div style="padding-bottom: 8px;">
-            <div style="font-size: 1.15rem; font-weight: 700; color: #FFFFFF;">AltScore Controls</div>
+        <div style="padding-bottom: 6px;">
+            <div style="font-size: 1.15rem; font-weight: 800; color: #FFFFFF;">AltScore Controls</div>
             <div style="font-size: 0.82rem; color: #94A3B8;">Applicant Selection & Scenario Coach</div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
     st.sidebar.divider()
 
@@ -455,16 +538,14 @@ def render_sidebar(personas: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, 
     )
     selected_persona = personas[selected_key]
 
-    # Display demographic profile chips in sidebar
-    st.sidebar.markdown(
+    render_html(
         f"""
-        <div style="background: #0F172A; padding: 10px 14px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 12px; font-size: 0.82rem;">
+        <div style="background: #0F172A; padding: 12px 14px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 12px; font-size: 0.82rem;">
             <div>• <strong>Role:</strong> {selected_persona['role']}</div>
             <div>• <strong>Location:</strong> {selected_persona['demographics']['geography']} ({selected_persona['demographics']['gender']})</div>
             <div>• <strong>Liquid Savings:</strong> ₹{selected_persona['liquid_balance']:,.2f}</div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     # 2. Extract Baseline Features
@@ -535,7 +616,7 @@ def render_sidebar(personas: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, 
 # =============================================================================
 def render_hero_banner() -> None:
     """Render the Deep Navy Hero Banner with title and pill badge."""
-    st.markdown(
+    render_html(
         """
         <div class="alt-hero-banner">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
@@ -552,8 +633,7 @@ def render_hero_banner() -> None:
                 </div>
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
@@ -571,7 +651,7 @@ def render_disclaimer_and_kpis(
 ) -> None:
     """Render the soft amber disclaimer banner and top-level summary KPI cards."""
     # Amber Disclaimer Banner
-    st.markdown(
+    render_html(
         """
         <div class="alt-disclaimer-banner">
             <strong>⚠️ Mandatory Research Prototype Notice:</strong><br/>
@@ -580,8 +660,7 @@ def render_disclaimer_and_kpis(
             real consumer banking records, does not produce legal credit bureau scores (e.g. CIBIL/FICO), and must not be
             used for actual lending decisions.
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     # Top-Level KPI Summary Cards
@@ -594,41 +673,35 @@ def render_disclaimer_and_kpis(
             diff = score - baseline_score
             sign = "+" if diff > 0 else ""
             d_color = "#059669" if diff > 0 else ("#DC2626" if diff < 0 else "#64748B")
-            score_delta_html = f'<span style="font-size: 0.90rem; font-weight: 700; color: {d_color}; margin-left: 8px;">({sign}{diff} pts)</span>'
+            score_delta_html = f'<span style="font-size: 0.90rem; font-weight: 700; color: {d_color}; margin-left: 6px; white-space: nowrap;">({sign}{diff} pts)</span>'
 
-        st.markdown(
+        render_html(
             f"""
-            <div class="alt-card" style="padding: 16px 20px; margin-bottom: 14px;">
-                <div style="font-size: 0.78rem; font-weight: 700; color: #64748B; text-transform: uppercase;">
-                    Illustrative Credit Score
-                </div>
-                <div style="display: flex; align-items: baseline; margin: 4px 0;">
-                    <span style="font-size: 2.2rem; font-weight: 800; color: {score_color};">{score}</span>
-                    <span style="font-size: 0.95rem; color: #64748B; margin-left: 4px;">/ 900</span>
+            <div class="alt-card card-accent-emerald" style="height: 100%; padding: 18px 22px;">
+                <div class="alt-card-header">Illustrative Credit Score</div>
+                <div style="display: flex; align-items: baseline; gap: 4px; flex-wrap: nowrap; white-space: nowrap; margin: 4px 0;">
+                    <span style="font-size: 2.3rem; font-weight: 800; color: {score_color}; line-height: 1;">{score}</span>
+                    <span style="font-size: 1.05rem; color: #64748B; font-weight: 600; white-space: nowrap;">/ 900</span>
                     {score_delta_html}
                 </div>
-                <div>{get_risk_badge_html(risk_category)}</div>
+                <div style="margin-top: 10px;">{get_risk_badge_html(risk_category)}</div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
     with col_kpi2:
-        st.markdown(
+        render_html(
             f"""
-            <div class="alt-card" style="padding: 16px 20px; margin-bottom: 14px;">
-                <div style="font-size: 0.78rem; font-weight: 700; color: #64748B; text-transform: uppercase;">
-                    Repayment Probability
-                </div>
-                <div style="font-size: 2.2rem; font-weight: 800; color: #0F172A; margin: 4px 0;">
+            <div class="alt-card card-accent-blue" style="height: 100%; padding: 18px 22px;">
+                <div class="alt-card-header">Repayment Probability</div>
+                <div style="font-size: 2.3rem; font-weight: 800; color: #0F172A; line-height: 1; margin: 4px 0;">
                     {probability:.1%}
                 </div>
-                <div style="font-size: 0.82rem; color: #475569;">
-                    Calibrated Logistic Sigmoid Output
+                <div style="margin-top: 10px;">
+                    <span class="badge-neutral">Calibrated Logistic Sigmoid</span>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
     with col_kpi3:
@@ -638,22 +711,21 @@ def render_disclaimer_and_kpis(
             if l_diff != 0:
                 l_sign = "+" if l_diff > 0 else ""
                 l_col = "#059669" if l_diff > 0 else "#DC2626"
-                limit_delta_html = f'<span style="font-size: 0.88rem; font-weight: 700; color: {l_col}; margin-left: 6px;">({l_sign}₹{abs(l_diff):,})</span>'
+                limit_delta_html = f'<span style="font-size: 0.88rem; font-weight: 700; color: {l_col}; margin-left: 6px; white-space: nowrap;">({l_sign}₹{abs(l_diff):,})</span>'
 
-        st.markdown(
+        render_html(
             f"""
-            <div class="alt-card" style="padding: 16px 20px; margin-bottom: 14px;">
-                <div style="font-size: 0.78rem; font-weight: 700; color: #64748B; text-transform: uppercase;">
-                    Pre-Approved Micro-Line
-                </div>
-                <div style="display: flex; align-items: baseline; margin: 4px 0;">
-                    <span style="font-size: 2.2rem; font-weight: 800; color: #0F172A;">{loan_offer['formatted_limit']}</span>
+            <div class="alt-card card-accent-indigo" style="height: 100%; padding: 18px 22px;">
+                <div class="alt-card-header">Pre-Approved Micro-Line</div>
+                <div style="display: flex; align-items: baseline; margin: 4px 0; flex-wrap: nowrap; white-space: nowrap;">
+                    <span style="font-size: 2.3rem; font-weight: 800; color: #0F172A; line-height: 1;">{loan_offer['formatted_limit']}</span>
                     {limit_delta_html}
                 </div>
-                <div><span class="{loan_offer['badge_class']}">{loan_offer['badge_text']}</span></div>
+                <div style="margin-top: 10px;">
+                    <span class="{loan_offer['badge_class']}">{loan_offer['badge_text']}</span>
+                </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
 
@@ -672,26 +744,25 @@ def render_digital_passbook(
 ) -> None:
     """Render Design A: The Consumer-Friendly Trust Passbook."""
     # Profile & Identity Overview Card
-    st.markdown(
+    render_html(
         f"""
         <div class="alt-card">
             <div class="alt-card-header">Applicant Digital Passbook</div>
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <div>
-                    <h2 style="margin: 0; color: #0F172A; font-size: 1.55rem; font-weight: 800;">{persona['name']}</h2>
+                    <h2 style="margin: 0; color: #0F172A; font-size: 1.6rem; font-weight: 800;">{persona['name']}</h2>
                     <span style="color: #475569; font-size: 0.95rem; font-weight: 500;">{persona['role']}</span>
                 </div>
-                <div style="text-align: right;">
-                    <span class="badge-neutral" style="margin-right: 6px;">Region: {persona['demographics']['geography']}</span>
-                    <span class="badge-neutral">Liquid Savings: ₹{persona['liquid_balance']:,.2f}</span>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <span class="badge-neutral">Region: {persona['demographics']['geography']}</span>
+                    <span class="badge-neutral">Savings: ₹{persona['liquid_balance']:,.2f}</span>
                 </div>
             </div>
-            <p style="margin-top: 12px; color: #334155; font-size: 0.92rem; line-height: 1.5;">
+            <p style="margin-top: 12px; color: #334155; font-size: 0.92rem; line-height: 1.5; margin-bottom: 0;">
                 {persona['summary']}
             </p>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     # Credit Health & Micro-Loan Offer Breakdown
@@ -702,15 +773,15 @@ def render_digital_passbook(
         progress_pct = max(0, min(100, int(((score - 300) / 600) * 100)))
         fill_class = "meter-fill-emerald" if score >= 810 else ("meter-fill-amber" if score >= 720 else "meter-fill-coral")
 
-        st.markdown(
+        render_html(
             f"""
             <div class="alt-card" style="height: 100%;">
                 <div class="alt-card-header">Credit Standing Gauge</div>
-                <div style="display: flex; align-items: baseline; gap: 6px;">
+                <div style="display: flex; align-items: baseline; gap: 6px; flex-wrap: nowrap; white-space: nowrap;">
                     <span style="font-size: 3.2rem; font-weight: 800; color: {score_color}; line-height: 1;">{score}</span>
                     <span style="font-size: 1.1rem; color: #64748B; font-weight: 600;">/ 900</span>
                 </div>
-                <div style="margin: 8px 0;">{get_risk_badge_html(risk_category)}</div>
+                <div style="margin: 10px 0;">{get_risk_badge_html(risk_category)}</div>
                 <div class="meter-bg">
                     <div class="{fill_class}" style="width: {progress_pct}%;"></div>
                 </div>
@@ -720,47 +791,44 @@ def render_digital_passbook(
                     <span>900 (Excellent)</span>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
     with col_offer_card:
-        st.markdown(
+        render_html(
             f"""
             <div class="alt-card" style="height: 100%;">
                 <div class="alt-card-header">Instant Micro-Line Terms</div>
-                <div style="display: flex; align-items: baseline; gap: 10px;">
-                    <span style="font-size: 2.3rem; font-weight: 800; color: #0F172A;">{loan_offer['formatted_limit']}</span>
+                <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+                    <span style="font-size: 2.3rem; font-weight: 800; color: #0F172A; line-height: 1;">{loan_offer['formatted_limit']}</span>
                     <span class="{loan_offer['badge_class']}">{loan_offer['badge_text']}</span>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
                     <div style="background: #F8FAFC; padding: 10px 14px; border-radius: 8px; border: 1px solid #E2E8F0;">
-                        <span style="font-size: 0.78rem; color: #64748B; font-weight: 600;">ESTIMATED INTEREST</span>
+                        <span style="font-size: 0.76rem; color: #64748B; font-weight: 700; text-transform: uppercase;">ESTIMATED INTEREST</span>
                         <div style="font-size: 1.1rem; font-weight: 700; color: #0F172A;">{loan_offer['interest_rate']}</div>
                     </div>
                     <div style="background: #F8FAFC; padding: 10px 14px; border-radius: 8px; border: 1px solid #E2E8F0;">
-                        <span style="font-size: 0.78rem; color: #64748B; font-weight: 600;">REPAYMENT TENURE</span>
+                        <span style="font-size: 0.76rem; color: #64748B; font-weight: 700; text-transform: uppercase;">REPAYMENT TENURE</span>
                         <div style="font-size: 1.1rem; font-weight: 700; color: #0F172A;">{loan_offer['tenure']}</div>
                     </div>
                 </div>
                 <p style="font-size: 0.82rem; color: #64748B; margin-top: 10px; margin-bottom: 0;">
-                    Disburses instantly via UPI to registered account upon confirmation.
+                    Disburses instantly via UPI directly to registered bank account upon confirmation.
                 </p>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
     # Daily Financial Health Habits (4 Behavioral Signals)
     st.markdown("### Daily Financial Health Habits")
-    st.caption("How your daily transaction behavior contributes to your credit health without credit cards:")
+    st.caption("How daily cash-flow habits contribute to your credit health without credit cards:")
 
     m1, m2 = st.columns(2)
     with m1:
-        # Income Flow Consistency
         inc_pct = int(features["income_stability"] * 100)
         inc_fill = "meter-fill-emerald" if inc_pct >= 80 else ("meter-fill-amber" if inc_pct >= 60 else "meter-fill-coral")
-        st.markdown(
+        render_html(
             f"""
             <div class="alt-card">
                 <div style="display: flex; justify-content: space-between; font-weight: 600;">
@@ -774,14 +842,12 @@ def render_digital_passbook(
                     Evaluates consistency of monthly cash inflows. Stable gig or shop income builds trust.
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
-        # On-Time Bill Discipline
         bill_pct = int(features["bill_payment_consistency"] * 100)
         bill_fill = "meter-fill-emerald" if bill_pct >= 90 else ("meter-fill-amber" if bill_pct >= 70 else "meter-fill-coral")
-        st.markdown(
+        render_html(
             f"""
             <div class="alt-card">
                 <div style="display: flex; justify-content: space-between; font-weight: 600;">
@@ -795,15 +861,13 @@ def render_digital_passbook(
                     Tracks timely settlement of utility, mobile recharge, and rent payments.
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
     with m2:
-        # Activity Regularity
         reg_pct = int(features["payment_regularity"] * 100)
         reg_fill = "meter-fill-emerald" if reg_pct >= 80 else ("meter-fill-amber" if reg_pct >= 60 else "meter-fill-coral")
-        st.markdown(
+        render_html(
             f"""
             <div class="alt-card">
                 <div style="display: flex; justify-content: space-between; font-weight: 600;">
@@ -817,15 +881,13 @@ def render_digital_passbook(
                     Checks for regular cash inflows each month, proving active trade or gig employment.
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
-        # Emergency Cushion
         buffer_val = features["financial_liquidity_buffer"]
         buf_pct = min(100, int((buffer_val / 6.0) * 100))
         buf_fill = "meter-fill-emerald" if buffer_val >= 3.0 else ("meter-fill-amber" if buffer_val >= 1.5 else "meter-fill-coral")
-        st.markdown(
+        render_html(
             f"""
             <div class="alt-card">
                 <div style="display: flex; justify-content: space-between; font-weight: 600;">
@@ -836,11 +898,10 @@ def render_digital_passbook(
                     <div class="{buf_fill}" style="width: {buf_pct}%;"></div>
                 </div>
                 <div style="font-size: 0.84rem; color: #475569;">
-                    Number of months savings can sustain living expenses (capped at 6 months).
+                    Number of months savings can sustain living expenses (capped at 6.0 months).
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
     # Actionable Tips Card
@@ -883,7 +944,7 @@ def render_bank_underwriter_view(
     risk_category: str,
 ) -> None:
     """Render Design B: The Professional Risk Management and Audit Console."""
-    st.markdown(
+    render_html(
         """
         <div style="background: #0F172A; color: #F8FAFC; padding: 18px 22px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155;">
             <div style="font-size: 0.80rem; text-transform: uppercase; color: #38BDF8; font-weight: 700; letter-spacing: 0.05em;">
@@ -893,8 +954,7 @@ def render_bank_underwriter_view(
                 Algorithmic Risk Assessment & Demographic Compliance Audit
             </div>
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     # 1. Underwriting Decision Cards
@@ -950,8 +1010,7 @@ def render_bank_underwriter_view(
     with c3:
         st.metric("Sigmoid Output P", f"{explanation['implied_probability']:.2%}")
 
-    # Plain English explanation card for auditors
-    st.markdown(
+    render_html(
         """
         <div class="explainer-box">
             <strong>Plain English Explanation for Auditors:</strong><br/>
@@ -959,8 +1018,7 @@ def render_bank_underwriter_view(
             - <strong>Local Contribution (β × x):</strong> The exact log-odds shift this applicant receives. A positive number pushes the decision toward approval; a negative number reduces repayment odds.<br/>
             - <strong>Zero Demographic Leakage:</strong> Gender and geography columns were completely excluded from the model feature matrix.
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
     st.divider()
@@ -1004,7 +1062,7 @@ def render_bank_underwriter_view(
     col_g, col_geo = st.columns(2)
     with col_g:
         g_info = audit_results["dimensions"]["gender"]
-        st.markdown(
+        render_html(
             f"""
             <div class="alt-card">
                 <div class="alt-card-header">Dimension 1: Gender Audit</div>
@@ -1012,16 +1070,15 @@ def render_bank_underwriter_view(
                 <div>• Comparison Group (Lower Rate): <strong>{g_info['comparison_group']} ({g_info['comparison_rate']:.1%})</strong></div>
                 <div style="margin-top: 14px;">
                     <span style="font-size: 0.82rem; color: #64748B; font-weight: 600;">DISPARATE IMPACT RATIO:</span>
-                    <div style="font-size: 1.8rem; font-weight: 700; color: #0F172A;">{g_info['ratio_display']}</div>
+                    <div style="font-size: 1.85rem; font-weight: 700; color: #0F172A;">{g_info['ratio_display']}</div>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
     with col_geo:
         geo_info = audit_results["dimensions"]["geography"]
-        st.markdown(
+        render_html(
             f"""
             <div class="alt-card">
                 <div class="alt-card-header">Dimension 2: Geography Audit</div>
@@ -1029,11 +1086,10 @@ def render_bank_underwriter_view(
                 <div>• Comparison Group (Lower Rate): <strong>{geo_info['comparison_group']} ({geo_info['comparison_rate']:.1%})</strong></div>
                 <div style="margin-top: 14px;">
                     <span style="font-size: 0.82rem; color: #64748B; font-weight: 600;">DISPARATE IMPACT RATIO:</span>
-                    <div style="font-size: 1.8rem; font-weight: 700; color: #0F172A;">{geo_info['ratio_display']}</div>
+                    <div style="font-size: 1.85rem; font-weight: 700; color: #0F172A;">{geo_info['ratio_display']}</div>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
     # Full audit summary table
@@ -1087,7 +1143,7 @@ def render_what_if_comparison_card(
 
     with c_base:
         b_badge = get_risk_badge_html(baseline_category)
-        st.markdown(
+        render_html(
             f"""
             <div class="alt-card">
                 <div class="alt-card-header">Baseline Standing ({persona_name})</div>
@@ -1098,8 +1154,7 @@ def render_what_if_comparison_card(
                     <div>• Eligible Credit Line: <strong>{baseline_loan['formatted_limit']}</strong></div>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
     with c_sim:
@@ -1110,7 +1165,7 @@ def render_what_if_comparison_card(
         limit_diff_text = f"+₹{limit_diff:,}" if limit_diff > 0 else (f"-₹{abs(limit_diff):,}" if limit_diff < 0 else "No change")
         s_badge = get_risk_badge_html(sim_category)
 
-        st.markdown(
+        render_html(
             f"""
             <div class="alt-card" style="border: 2px solid #2563EB;">
                 <div class="alt-card-header" style="color: #1D4ED8;">Simulated Outcome (Adjusted Inputs)</div>
@@ -1123,8 +1178,7 @@ def render_what_if_comparison_card(
                     <div>• Eligible Credit Line: <strong>{sim_loan['formatted_limit']}</strong> ({limit_diff_text})</div>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
+            """
         )
 
 
@@ -1140,7 +1194,7 @@ def main() -> None:
         initial_sidebar_state="expanded",
     )
 
-    # 1. Inject Scoped CSS Variables and Styles
+    # 1. Inject Responsive FinTech CSS
     inject_custom_css()
 
     # 2. Render Hero Header Banner
@@ -1183,7 +1237,7 @@ def main() -> None:
         baseline_loan=base_loan,
     )
 
-    # 8. Persistent Segmented View Switcher (Borrower vs Underwriter)
+    # 8. Persistent Segmented Lens Switcher (Borrower vs Underwriter)
     view_mode = st.radio(
         label="Operational Lens Switcher",
         options=[
@@ -1248,13 +1302,12 @@ def main() -> None:
 
     # Footer
     st.divider()
-    st.markdown(
+    render_html(
         """
         <div style="text-align: center; color: #64748B; font-size: 0.82rem; padding: 10px 0;">
             AltScore AI • Hackathon Alternative Credit Scoring & Fairness Audit Prototype • Open Research Demo
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
 
 
