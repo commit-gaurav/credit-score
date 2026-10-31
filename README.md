@@ -1,235 +1,215 @@
 # AltScore AI: Explainable Alternative Credit Scoring & Fairness Audit
 
-AltScore AI is an interactive, explainable alternative credit intelligence prototype designed to evaluate borrowers without traditional credit bureau histories (e.g., gig workers, informal artisans, and micro-entrepreneurs). Built with Python, Streamlit, pandas, and scikit-learn, the application demonstrates how alternative cash-flow behavioral signals can be extracted, modeled transparently, explained at the local decision level, simulated interactively, and audited for demographic fairness.
+AltScore AI is an explainable alternative credit intelligence prototype designed for hackathon demonstration. It evaluates borrowers who lack formal credit bureau histories—such as gig workers, small shopkeepers, rural artisans, and first-time borrowers—using cash-flow behavioral signals, transparent machine learning, interactive scenario exploration, and demographic fairness auditing.
 
 ---
 
-> ### ⚠️ Mandatory Ethical & Prototype Disclaimer
-> **Synthetic Demonstration Only:** AltScore AI is an educational, research, and technical prototype. All borrower personas, transaction records, training datasets, scores, and fairness metrics are entirely synthetic simulations. This tool is **not** an established credit bureau scoring engine (such as CIBIL, Experian, or FICO), does not access real consumer financial data, and **must not** be used to make actual underwriting, lending, or credit denial decisions.
+> ### ⚠️ Mandatory Prototype & Ethical Disclaimer
+> **Synthetic Demonstration Only:** AltScore AI is an educational and research prototype. All borrower personas, financial transactions, training datasets, risk tiers, illustrative scores, and fairness metrics are entirely synthetic simulations. This tool is **not** an established credit bureau scoring engine (such as CIBIL, Experian, or FICO), does not access real consumer banking records, and **must not** be used for actual credit underwriting or lending decisions.
 
 ---
 
-## 1. System Architecture
+## 1. Quick Setup & Launch Instructions
 
-The codebase follows a modular design with separation between synthetic profiles, behavioral feature extraction, training data generation, explainable ML scoring, and demographic auditing:
-
-```
-credit-score/
-├── app.py                      # Interactive Streamlit dashboard and UI rendering
-├── requirements.txt            # Python dependencies (Streamlit, pandas, scikit-learn, etc.)
-├── PLAN.md                     # Architecture specification, 10-slice build plan, decisions log
-├── README.md                   # Complete documentation, math formulations, and judge demo script
-├── BACKEND.md                  # Plain-English backend architecture and workflow guide
-├── data/
-│   ├── __init__.py
-│   ├── personas.py             # 3 synthetic profiles & 6-month transaction ledgers
-│   └── synthetic_data.py       # Reproducible N=1,000 dataset generator (seed=42)
-├── features/
-│   ├── __init__.py
-│   └── extraction.py           # Cash-flow behavioral feature extraction engine
-├── model/
-│   ├── __init__.py
-│   └── scoring.py              # Logistic regression, scoring, calibration & local explanations
-└── fairness/
-    ├── __init__.py
-    └── audit.py                # Disparate impact auditing across gender & geography
-```
-
-> 📖 **Deep Dive into the Backend:** For an end-to-end, plain-English breakdown of how every file and library works in sequence, read [BACKEND.md](file:///d:/credit%20project/BACKEND.md).
-
----
-
-## 2. Core Feature Formulations & Logic
-
-To evaluate thin-file and credit-invisible individuals fairly, the model evaluates four behavioral financial features extracted from monthly cash flows. Demographic fields (gender, age, location) are strictly excluded from the feature vector $X$.
-
-### 1. Income Stability
-* **Definition:** Consistency of monthly income inflows over the observation window.
-* **Formula:** $\text{Income Stability} = \max\left(0.0, 1.0 - \frac{\sigma_{\text{inflow}}}{\mu_{\text{inflow}}}\right)$
-* **Units:** Dimensionless index bounded in $[0.0, 1.0]$. A value of $1.0$ indicates perfectly steady income; higher coefficient of variation ($\sigma / \mu$) lowers stability.
-* **Edge Cases:** If $\mu_{\text{inflow}} \le 0$, stability is assigned $0.0$.
-
-### 2. Bill-Payment Consistency
-* **Definition:** Proportion of utility, rent, and recurring commitments paid on or before the due date.
-* **Formula:** $\text{Bill Consistency} = \frac{\text{Count of On-Time Bill Payments}}{\text{Total Count of Scheduled Bills}}$
-* **Units:** Proportion bounded in $[0.0, 1.0]$.
-* **Missing-Data Handling:** If no scheduled bills exist, defaults to $1.0$ (neutral/unpenalized). Unpaid or missing transactions are explicitly distinguished and never silently counted as on-time.
-
-### 3. Payment Regularity
-* **Definition:** Uniformity of cash outflows across the month, penalizing lump-sum exhaustion.
-* **Formula:** $\text{Payment Regularity} = \max\left(0.0, 1.0 - \frac{\sigma_{\text{weekly\_spend}}}{\mu_{\text{weekly\_spend}}}\right)$
-* **Units:** Dimensionless index bounded in $[0.0, 1.0]$. Smooth weekly distributions approach $1.0$.
-
-### 4. Financial Liquidity Buffer
-* **Definition:** Number of months the borrower can sustain average living expenses using current liquid reserves.
-* **Formula:** $\text{Liquidity Buffer} = \min\left(6.0, \frac{\text{Current Liquid Balance}}{\text{Average Monthly Outflows}}\right)$
-* **Units:** Months of living expenses (capped strictly at $6.0$ months to prevent ultra-wealthy outliers from skewing linear risk estimates).
-* **Missing-Data Handling:** If monthly outflows equal $0$, the buffer is capped at $6.0$ months.
-
----
-
-## 3. Modeling, Calibration & Local Explanations
-
-### Baseline Logistic Regression
-* **Dataset:** $N = 1,000$ synthetic borrower records generated with a fixed seed (`DEFAULT_SEED = 42`).
-* **Train / Held-Out Test Split:** Stratified 75% train ($N=750$) and 25% test ($N=250$).
-* **Features:** Exclusively the 4 behavioral features above. Demographic columns (`gender`, `geography`, `age`) and target labels are omitted from training inputs.
-* **Evaluation Metrics (Held-Out Test Set):**
-  - **ROC-AUC:** $0.5834$
-  - **Accuracy:** $80.00\%$
-  - **Precision:** $80.80\%$
-  - **Recall:** $98.50\%$
-  - **F1 Score:** $0.8879$
-  *(All metrics are labeled as synthetic demonstration metrics).*
-
-### Score Mapping Formula
-Estimated repayment probability $P \in [0.0, 1.0]$ is translated to an illustrative score:
-$$\text{Illustrative Score} = \text{clamp}\Big(300, 900, \text{round}(300 + 600 \times P)\Big)$$
-* **Note:** This represents an illustrative linear mapping, **not** an established bureau score (such as CIBIL or FICO).
-
-### Documented Risk Categorization
-* **Low Risk:** Repayment Probability $P \ge 85\%$ (Score $\ge 810$).
-* **Medium Risk:** Repayment Probability $70\% \le P < 85\%$ (Score $720 - 809$).
-* **High Risk:** Repayment Probability $P < 70\%$ (Score $< 720$).
-
-### Exact Local Linear Explanations
-For logistic regression, the log-odds of repayment is an exact linear combination of feature values:
-$$\ln\left(\frac{P}{1 - P}\right) = \beta_0 + \sum_{i=1}^{4} \beta_i x_i$$
-* **Local Contribution:** Each feature's contribution for the specific persona is computed as $\beta_i \times x_i$.
-* **Transparency:** Positive terms increase repayment odds; negative terms decrease repayment odds.
-* **Distinction:** The UI clearly separates local row-level contributions from global model coefficients, and distinguishes statistical associations from causal guarantees.
-
----
-
-## 4. Demographic Fairness & Disparate Impact Audit
-
-Fairness auditing evaluates whether the trained model produces equitable approval rates across protected demographic dimensions (**Gender** and **Urban/Rural Geography**).
-
-### Approval Threshold Rule
-* **Approval Criterion:** Borrowers with estimated repayment probability $P \ge 0.70$ (Score $\ge 720$) are classified as Approved.
-
-### Four-Fifths Rule (Disparate Impact Ratio)
-For each demographic dimension:
-1. Identify the group with the highest approval rate as the **Reference Group**.
-2. Identify the other group as the **Comparison Group**.
-3. Compute the Disparate Impact Ratio:
-   $$\text{Disparate Impact Ratio} = \frac{\text{Approval Rate}_{\text{comparison}}}{\text{Approval Rate}_{\text{reference}}}$$
-4. An impact ratio $\ge 0.80$ satisfies the EEOC/Four-Fifths standard under synthetic test assumptions.
-
-### Zero-Rate Protection
-If the reference group's approval rate is $0.0\%$, the ratio is marked as `Undefined` rather than generating a divide-by-zero error.
-
-### Synthetic Audit Results ($N=1,000$ Evaluation Records)
-| Audit Dimension | Reference Group | Comparison Group | Disparate Impact Ratio | Four-Fifths Rule (≥ 0.80) |
-| :--- | :--- | :--- | :---: | :---: |
-| **Gender** | Female ($88.22\%$) | Male ($87.79\%$) | **$0.9951$** | Pass (Synthetic) |
-| **Geography** | Rural ($88.59\%$) | Urban ($87.52\%$) | **$0.9879$** | Pass (Synthetic) |
-
-### ⚠️ Critical Governance Caveat: The Proxy Bias Dilemma
-Omitting demographic variables (`gender`, `geography`) from model inputs successfully eliminates **direct disparate treatment**. However, it **does not eliminate indirect proxy discrimination**. Neutral financial features (such as liquidity reserves or formal bill payments) often mirror structural historical socioeconomic disparities. Synthetic fairness checks must never be mistaken for legal non-discriminatory compliance under ECOA or fair lending statutes.
-
----
-
-## 5. Judge Demonstration Script (5-Minute Walkthrough)
-
-When demonstrating AltScore AI to evaluators or hackathon judges, follow this concise workflow:
-
-### Step 1: Context & Disclaimer (30 Seconds)
-* Open the dashboard at `http://localhost:8501`.
-* Point out the **Prototype Disclaimer** banner and explain the core thesis: enabling transparent credit intelligence for thin-file borrowers using behavioral cash-flow signals.
-
-### Step 2: The Three Synthetic Personas (1 Minute)
-Use the persona dropdown in Section 2 to compare three distinct archetypes:
-1. **Ramesh Kumar (Kirana Store Owner - Rural Male):**
-   - *Behavior:* Steady daily grocery sales, prompt utility bill payments, healthy savings reserve ($3.8$ months).
-   - *Result:* High Income Stability ($0.92$), $100\%$ Bill Consistency.
-   - *Outcome:* Estimated Repayment $94.39\%$, Illustrative Score $866$, **Low Risk**.
-2. **Sunita Devi (Artisan & Tailor - Urban Female):**
-   - *Behavior:* Seasonal festival earnings, $100\%$ on-time utility bills, moderate savings ($2.1$ months).
-   - *Result:* Moderate Income Stability ($0.74$), solid liquidity buffer.
-   - *Outcome:* Estimated Repayment $74.52\%$, Illustrative Score $747$, **Medium Risk**.
-3. **Aarav Sharma (Gig Economy Courier - Urban Male):**
-   - *Behavior:* Volatile weekly platform earnings, multiple missed utility payments, low savings ($0.8$ months).
-   - *Result:* Low Bill Consistency ($66.7\%$), low buffer.
-   - *Outcome:* Estimated Repayment $59.39\%$, Illustrative Score $656$, **High Risk**.
-
-### Step 3: Explainable Decision Decomposition (1 Minute)
-* Scroll to **Section 7: Prediction Explanation**.
-* Show how the logistic regression log-odds decompose into transparent feature contributions:
-  - For Ramesh: Point out how Income Stability and Liquidity Buffer provide strong positive contributions to his score.
-  - For Aarav: Point out how missed bill payments and low liquidity drag down his odds.
-* Emphasize the governance note: these reflect model-learned statistical associations, not definitive causal claims.
-
-### Step 4: Interactive What-If Scenario Exploration (1.5 Minutes)
-* Scroll to **Section 8: Interactive What-If Simulator** with **Aarav Sharma** selected.
-* *The Pitch:* "Rather than handing a borrower a black-box rejection, AltScore AI empowers financial counseling."
-* Move the **Financial Liquidity Buffer** slider from $0.8$ months up to $3.5$ months.
-* Move the **Bill-Payment Consistency** slider from $0.67$ up to $1.00$.
-* Observe the real-time recalculated card:
-  - Probability rises from $59.4\%$ to $\approx 78\%$.
-  - Score climbs from $656$ to $\approx 770$.
-  - Risk category moves from **High Risk** to **Medium Risk**.
-  - Show the live contribution shift in the adjusted explanation chart.
-
-### Step 5: Demographic Fairness Audit & Caveats (1 Minute)
-* Scroll to **Section 9: Synthetic Fairness & Disparate Impact Audit**.
-* Review the Disparate Impact Ratios:
-  - Gender: $0.9951$ (Passes Four-Fifths rule $\ge 0.80$).
-  - Geography: $0.9879$ (Passes Four-Fifths rule $\ge 0.80$).
-* Deliver the concluding takeaway on **Proxy Bias**: explain why blind omission of demographic columns is necessary but insufficient, and why ongoing demographic monitoring is mandatory in responsible lending.
-
----
-
-## 6. Installation & Execution Guide
+Follow these steps to launch the dashboard locally on your machine:
 
 ### Prerequisites
-* Windows, macOS, or Linux
-* Python 3.10, 3.11, 3.12, 3.13, or 3.14
+* Python 3.10 or higher installed.
+* PowerShell, Command Prompt (Windows), or Bash (macOS/Linux).
 
-### Setup & Run Steps (PowerShell / Terminal)
+### Step-by-Step Launch Commands
 
 ```powershell
-# 1. Clone the repository
-git clone https://github.com/commit-gaurav/credit-score.git
-cd credit-score
+# 1. Clone or navigate to the project directory
+cd "d:\credit project"
 
-# 2. Set up virtual environment (if not already created)
+# 2. Create a virtual environment (if not already present)
 python -m venv .venv
 
-# 3. Activate the environment
-# Windows PowerShell:
+# 3. Activate the virtual environment
+# On Windows PowerShell:
 .\.venv\bin\Activate.ps1
-# Windows Command Prompt:
-# .\.venv\Scripts\activate.bat
-# Linux / macOS:
-# source .venv/bin/activate
+# (Or on Windows Command Prompt: .\.venv\Scripts\activate.bat)
+# (Or on macOS / Linux: source .venv/bin/activate)
 
-# 4. Install dependencies
+# 4. Install required dependencies
 pip install -r requirements.txt
 
-# 5. Launch the Streamlit application
+# 5. Launch the Streamlit dashboard
 streamlit run app.py
 ```
 
-The application will launch at `http://localhost:8501`.
+*Direct PowerShell fallback (runs directly without environment activation):*
+```powershell
+.\.venv\bin\python.exe -m streamlit run app.py
+```
+
+The application will automatically open in your default browser at `http://localhost:8501`.
 
 ---
 
-## 7. Development Slice Checklist
+## 2. Project Architecture & File Organization
 
-- [x] **Slice 1:** App shell, architecture, and prominent prototype disclaimer (`6c620e3`)
-- [x] **Slice 2:** Synthetic personas (Ramesh, Sunita, Aarav) & transaction ledgers (`fc5b7fb`)
-- [x] **Slice 3:** Behavioral feature extraction engine with unit definitions & caps (`9cf4851`)
-- [x] **Slice 4:** Reproducible synthetic dataset generation ($N=1,000$, seed=42) (`6315a5c`)
-- [x] **Slice 5:** Baseline logistic regression training & held-out test evaluation (`fda2362`)
-- [x] **Slice 6:** Persona probability prediction, 300–900 score mapping & risk tiers (`0a2299e`)
-- [x] **Slice 7:** Exact local linear prediction explanation ($\beta_0 + \sum \beta_i x_i$) (`cb2009a`)
-- [x] **Slice 8:** Interactive 4-feature what-if scenario simulator & comparison (`8b595c7`)
-- [x] **Slice 9:** Synthetic demographic fairness audit & disparate impact analysis (`6fcf2b5`)
-- [x] **Slice 10:** Comprehensive documentation polish, demo script, and complete run-through
+The application is structured into focused, modular packages. Data and model objects remain entirely in memory; no external databases or network services are required.
+
+```
+credit-score/
+├── app.py                      # Interactive Streamlit dashboard and user presentation flow
+├── requirements.txt            # Minimal Python dependencies (Streamlit, pandas, scikit-learn)
+├── PLAN.md                     # Architecture specification, 10-slice build order, decisions log
+├── README.md                   # Setup instructions, demo script, and technical explanations
+├── BACKEND.md                  # Detailed plain-English backend workflow guide
+├── data/
+│   ├── __init__.py             # Package initializer
+│   ├── personas.py             # 3 synthetic profiles & 6-month transaction ledgers
+│   └── synthetic_data.py       # Reproducible N=1,000 dataset generator (seed=42)
+├── features/
+│   ├── __init__.py             # Package initializer
+│   └── extraction.py           # Feature extraction engine (4 behavioral signals)
+├── model/
+│   ├── __init__.py             # Package initializer
+│   └── scoring.py              # Logistic regression, score mapping & linear explanations
+└── fairness/
+    ├── __init__.py             # Package initializer
+    └── audit.py                # Demographic approval rates & disparate impact ratios
+```
 
 ---
 
-## 8. License & Attribution
+## 3. Data Flow & Technical Explanations
 
-This project is released under the **MIT License** for open research and educational exploration. Designed for hackathons, academic research in AI explainability, and algorithmic fairness audits.
+### How the Data Flows Through the System
+1. **Persona Selection:** The user selects an applicant profile in the UI.
+2. **Feature Extraction:** Raw transactions pass through `extract_features()`. Four normalized financial signals are computed. Demographics remain strictly isolated metadata.
+3. **Synthetic Training Population:** An in-memory population ($N=1,000$) is generated with a fixed seed (`seed=42`) using a latent logistic formula with stochastic noise ($\epsilon$).
+4. **Baseline Model Training:** A Scikit-Learn `LogisticRegression` classifier trains on 75% of the synthetic data ($N=750$) and evaluates on a 25% held-out test split ($N=250$).
+5. **Prediction & Scoring:** The selected persona's features pass into the model. The repayment probability is mapped to an illustrative 300–900 score and risk category.
+6. **Local Explanation:** The model's log-odds are decomposed into exact feature-level contributions ($\beta_i \times x_i$).
+7. **What-If Simulation:** Users adjust feature sliders; modified values run through the exact same model pipeline to recompute probability, score, and explanation side-by-side with baseline.
+8. **Fairness Audit:** Post-scoring demographic grouping calculates group approval rates and disparate impact ratios across Gender and Urban/Rural geography.
+
+---
+
+### The Four Behavioral Features (Formulas & Edge Cases)
+
+| Feature | Range / Unit | Mathematical Formula | Explicit Missing-Data Policy |
+| :--- | :---: | :--- | :--- |
+| **Income Stability** | `0.00 – 1.00` | $\max\left(0, 1 - \frac{\sigma_{\text{inflow}}}{\mu_{\text{inflow}}}\right)$ across monthly inflows | If zero income is recorded, returns `0.00`. If only 1 month exists, variance is 0, returns `1.00`. |
+| **Bill-Payment Consistency** | `0.00 – 1.00` | $\frac{\text{Count of On-Time Bills}}{\text{Total Scheduled Bills}}$ | **Zero bills recorded does NOT count as missed payments.** Default is neutral `1.00` (no adverse records). |
+| **Payment Regularity** | `0.00 – 1.00` | $\frac{\text{Months With Inflows}}{\text{Total Observed Months}}$ | If no transactions exist, returns `0.00`. |
+| **Liquidity Buffer** | `0.00 – 6.00 mos` | $\min\left(6.0, \frac{\text{Liquid Balance}}{\text{Avg Monthly Outflow}}\right)$ | If monthly outflow is zero, capped at `6.00` months. Negative balance floored at `0.00`. Strictly capped at `6.00` months. |
+
+---
+
+### The Scoring Model & Evaluation Metrics
+
+* **Why Logistic Regression?**
+  - **Explainability:** Produces direct, transparent linear weights ($\beta$) that can be fully explained to borrowers, eliminating "black-box" mystery.
+  - **Calibration:** Outputs mathematically sound probabilities ($0.0$ to $1.0$).
+  - **Speed:** Trains in milliseconds without requiring GPUs or external cloud services.
+* **Held-Out Test Metrics ($N=250$ Synthetic Samples):**
+  - **ROC-AUC:** `0.5834` (Measures test sample ranking quality).
+  - **Accuracy:** `80.00%`
+  - **Precision:** `80.80%`
+  - **Recall:** `98.50%`
+  - **F1 Score:** `0.8879`
+  *(All metrics are computed on synthetic test distributions and labeled as synthetic results).*
+
+---
+
+### Illustrative Score & Risk Classification
+
+* **Score Mapping Formula:**
+  $$\text{Illustrative Score} = \text{clamp}\Big(300, 900, \text{round}(300 + 600 \times P_{\text{repayment}})\Big)$$
+  *Note: This is an illustrative linear transformation, not an established credit bureau score (such as CIBIL or FICO).*
+
+* **Documented Risk Categories:**
+  - **Low Risk:** Repayment Probability $P \ge 85\%$ (Score $810 – 900$).
+  - **Medium Risk:** Repayment Probability $70\% \le P < 85\%$ (Score $720 – 809$).
+  - **High Risk:** Repayment Probability $P < 70\%$ (Score $300 – 719$).
+
+---
+
+### Demographic Fairness Audit & Disparate Impact
+
+* **Documented Approval Threshold:** Borrowers with estimated repayment probability $P \ge 0.70$ (Score $\ge 720$) are approved.
+* **Four-Fifths Rule (EEOC Disparate Impact Standard):**
+  1. **Reference Group:** The demographic group with the higher approval rate.
+  2. **Comparison Group:** The demographic group with the lower approval rate.
+  3. **Disparate Impact Ratio:**
+     $$\text{Disparate Impact Ratio} = \frac{\text{Approval Rate}_{\text{comparison}}}{\text{Approval Rate}_{\text{reference}}}$$
+  4. If the ratio is $\ge 0.80$, it satisfies the Four-Fifths benchmark under synthetic test conditions.
+* **Zero-Rate Protection:** If the reference group approval rate is $0.0\%$, the ratio is explicitly reported as `Undefined` rather than raising a division-by-zero error.
+* **Synthetic Audit Results ($N=1,000$ Rows):**
+  - **Gender Audit:** Female reference rate ($88.22\%$) vs. Male comparison rate ($87.79\%$) $\to$ **Ratio: $0.9951$** (Pass).
+  - **Geography Audit:** Rural reference rate ($88.59\%$) vs. Urban comparison rate ($87.52\%$) $\to$ **Ratio: $0.9879$** (Pass).
+
+---
+
+## 4. Judge Demonstration Script (5-Minute Walkthrough)
+
+Use this structured walkthrough when presenting AltScore AI to evaluators or judges:
+
+```
+[Demo Flow Overview]
+1. Introduction & Disclaimer  -->  2. Three Personas Walkthrough  -->  3. Feature Extraction
+4. Model & Held-Out Metrics   -->  5. Score & Risk Categorization -->  6. Local Explanations
+7. Interactive What-If Sim    -->  8. Demographic Fairness Audit  -->  9. Governance Conclusion
+```
+
+### Step 1: The Problem & Prototype Disclaimer (30 Seconds)
+- Open the dashboard at `http://localhost:8501`.
+- State the core challenge: Traditional credit bureaus fail thin-file borrowers (gig workers, informal micro-entrepreneurs) who lack formal bank statements.
+- Point to the **Prototype Disclaimer** banner: All data, scores, and metrics are synthetic learning demonstrations.
+
+### Step 2: Persona Comparison (1.5 Minutes)
+Use the dropdown in **Section 1** to compare the three contrasting archetypes:
+1. **Ramesh Kumar (Rural Male - Kirana Store Owner):**
+   - Steady daily grocery sales, $100\%$ on-time utility bills, $3.8$-month liquid buffer.
+   - *Result:* Repayment Probability **$94.39\%$**, Illustrative Score **$866$**, **Low Risk**.
+2. **Sunita Devi (Urban Female - Artisan Tailor):**
+   - Seasonal wedding/festival income, $100\%$ on-time bills, moderate $2.1$-month buffer.
+   - *Result:* Repayment Probability **$74.52\%$**, Illustrative Score **$747$**, **Medium Risk**.
+3. **Aarav Sharma (Urban Male - Gig Delivery Courier):**
+   - Volatile weekly earnings, $1$ missed bill payment, narrow $0.8$-month buffer.
+   - *Result:* Repayment Probability **$59.39\%$**, Illustrative Score **$656$**, **High Risk**.
+
+### Step 3: Model Explanation & Transparency (1 Minute)
+- Scroll to **Section 7: Prediction Explanation**.
+- Explain the difference between **global feature importance** ($\beta$) and **local prediction contribution** ($\beta \times x$).
+- Show how the logit is decomposed linearly into positive and negative drivers:
+  - For Ramesh: Strong positive contributions from income stability and liquidity buffer.
+  - For Aarav: Lower bill consistency and a narrow buffer pull down his odds.
+- Highlight the governance rule: statistical associations reflect synthetic patterns, not causal guarantees.
+
+### Step 4: Interactive What-If Scenario Exploration (1 Minute)
+- Scroll to **Section 8: What-If Simulator** with **Aarav Sharma** selected.
+- Show how AltScore AI acts as a financial coaching tool rather than a black-box denial.
+- Drag Aarav's **Liquidity Buffer** slider from $0.8 \to 3.5$ months and **Bill-Payment Consistency** from $0.67 \to 1.00$.
+- Highlight the real-time update beside the baseline:
+  - Estimated repayment probability rises from $59.4\% \to \approx 78\%$.
+  - Illustrative score climbs from $656 \to \approx 770$.
+  - Risk classification improves from **High Risk** to **Medium Risk**.
+  - The feature contribution table updates dynamically to show the exact logit shift.
+
+### Step 5: Fairness Audit & The Proxy Bias Dilemma (1 Minute)
+- Scroll to **Section 9: Fairness & Disparate Impact Audit**.
+- Show that both Gender ($0.9951$) and Geography ($0.9879$) pass the Four-Fifths rule.
+- Conclude with the **Proxy Bias governance lesson**:
+  - *"Excluding demographic columns from model inputs eliminates direct disparate treatment, but it does NOT eliminate indirect proxy bias. Neutral financial signals (like liquidity reserves) can still correlate with historical systemic inequalities. Responsible AI requires continuous post-scoring demographic auditing."*
+
+---
+
+## 5. Critical Prototype Limitations & Governance
+
+1. **Wholly Synthetic Data:** No real consumer transactions or banking records are accessed. Metrics cannot be used to predict real-world default rates.
+2. **Not a Real Credit Bureau Score:** The 300–900 score is an illustrative mathematical scaling of model probability ($300 + 600 \times P$). It carries no legal or regulatory credit bureau standing.
+3. **Correlation vs. Causation:** Model feature weights reflect statistical correlations in synthetic data, not causal guarantees. Improving a borrower's liquidity buffer slider increases model odds, but real-world repayment depends on broader macro-economic factors.
+4. **The Proxy Bias Dilemma:** Eliminating protected attributes (gender, location) from model inputs does not prevent indirect discrimination if financial features act as proxies for historical economic disparities.
+5. **No Regulatory Compliance Claim:** These synthetic audit numbers do not establish statutory fair lending compliance under the Equal Credit Opportunity Act (ECOA) or FCRA.
+
+---
+
+## 6. License & Attribution
+
+Released under the **MIT License**. Designed for hackathon presentations, open technical research in AI explainability, and algorithmic fairness demonstrations.

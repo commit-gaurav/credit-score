@@ -167,3 +167,4 @@ credit-score/
 └── fairness/
     └── audit.py           # Approval rates, disparate impact ratio, 4/5ths rule, zero-rate handling
 ```
+
